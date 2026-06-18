@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #0e0f11;
+  color: #e8e6e1;
+}
+
+body {
+  font-feature-settings: "kern", "liga";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The wordmark + section eyebrows: wide-tracked uppercase, like a nameplate. */
+.eyebrow {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #8a744f;
+}
+
+.wordmark {
+  font-family: var(--font-display), Georgia, serif;
+  text-transform: uppercase;
+  letter-spacing: 0.42em;
+  font-weight: 400;
+}
+
+/* A hairline that reads as restraint, not as a table. */
+.hairline {
+  border-color: #26282c;
+}
+
+/* Respect reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Calm focus ring in the brass accent. */
+:focus-visible {
+  outline: 2px solid #b89b6e;
+  outline-offset: 2px;
+}
+
+/* Thin, unobtrusive scrollbars. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #26282c;
+  border-radius: 999px;
+}

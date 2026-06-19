@@ -107,7 +107,11 @@ useEffect(() => {
       // start() throws if already started; ignore.
     }
   }
-
+function newChat() {
+  setTurns([]);
+  setConversationId(undefined);
+  setInput("");
+}
   async function send() {
     const message = input.trim();
     if (!message || busy) return;
@@ -160,6 +164,18 @@ useEffect(() => {
 
   return (
     <div className="flex h-[60vh] flex-col rounded-xl border hairline bg-ink-raised">
+      <div className="flex items-center justify-between border-b hairline px-4 py-2">
+  <span className="text-xs text-paper-faint">
+    {conversationId ? "Saved conversation" : "New conversation"}
+  </span>
+
+  <button
+    onClick={newChat}
+    className="text-xs text-paper-faint hover:text-paper"
+  >
+    New chat
+  </button>
+</div>
       <div className="flex-1 space-y-5 overflow-y-auto p-6">
         {turns.length === 0 && (
           <p className="text-sm text-paper-faint">

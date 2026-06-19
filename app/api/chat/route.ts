@@ -5,7 +5,57 @@ import { buildSystemPrompt } from "@/lib/prompt";
 import { reason, type ChatTurn } from "@/lib/claude";
 import { searchWeb } from "@/lib/search";
 export const runtime = "nodejs";
+function parseTaskFromMessage(message: string) {
+  const match = message.match(/(?:add task|create task|remind me to|todo)\s+(.+)/i);
+  if (!match) return null;
 
+  let text = match[1].trim();
+  let dueAt: string | null = null;
+
+  const now = new Date();
+
+  function setDate(daysToAdd: number) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + daysToAdd);
+    d.setHours(9, 0, 0, 0);
+    dueAt = d.toISOString();
+  }
+
+  if (/tomorrow/i.test(text)) {
+    setDate(1);
+    text = text.replace(/tomorrow/i, "").trim();
+  } else if (/today/i.test(text)) {
+    setDate(0);
+    text = text.replace(/today/i, "").trim();
+  }
+
+  const timeMatch = text.match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+
+  if (timeMatch && dueAt) {
+    const d = new Date(dueAt);
+    let hour = Number(timeMatch[1]);
+    const minute = timeMatch[2] ? Number(timeMatch[2]) : 0;
+    const meridiem = timeMatch[3]?.toLowerCase();
+
+    if (meridiem === "pm" && hour < 12) hour += 12;
+    if (meridiem === "am" && hour === 12) hour = 0;
+
+    d.setHours(hour, minute, 0, 0);
+    dueAt = d.toISOString();
+
+    text = text.replace(timeMatch[0], "").trim();
+  }
+
+  text = text
+    .replace(/\bat\b$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return {
+    title: text,
+    due_at: dueAt,
+  };
+}
 /**
  * POST /api/chat   (Layer 1 → Layer 3, via this relay)
  * Body: { message: string, conversationId?: string }
@@ -42,20 +92,16 @@ export async function POST(req: NextRequest) {
       role: "user",
       content: message,
     });
-const taskMatch = message.match(
-  /(?:add task|create task|remind me to|todo)\s+(.+)/i
-);
+const parsedTask = parseTaskFromMessage(message);
 
-if (taskMatch) {
-  const title = taskMatch[1].trim();
-
+if (parsedTask) {
   const { data, error } = await db
     .from("tasks")
     .insert({
       user_id: USER_ID,
-      title,
+      title: parsedTask.title,
       notes: "",
-      due_at: null,
+      due_at: parsedTask.due_at,
       status: "open",
     })
     .select("*")
@@ -63,7 +109,18 @@ if (taskMatch) {
 
   if (error) throw error;
 
-  const reply = `✅ Task added: ${data.title}`;
+  const dueText = data.due_at
+    ? `\nDue: ${new Date(data.due_at).toLocaleString("en-AE", {
+        timeZone: "Asia/Dubai",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })}`
+    : "";
+
+  const reply = `✅ Task added: ${data.title}${dueText}`;
 
   await db.from("messages").insert({
     conversation_id: convId,

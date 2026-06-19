@@ -149,18 +149,23 @@ export function ChatWindow() {
 
     const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-      alert(data.error ?? "Failed to delete chat");
-      return;
-    }
+   if (!res.ok) {
+  alert(data.error ?? "Failed to delete chat");
+  return;
+}
 
-    await loadConversations();
+// Remove immediately from screen
+setConversations((prev) =>
+  prev.filter((c) => c.id !== id)
+);
 
-    if (conversationId === id) {
-      setConversationId(undefined);
-      setTurns([]);
-    }
-  }
+if (conversationId === id) {
+  setConversationId(undefined);
+  setTurns([]);
+}
+
+// Reload fresh list from server
+await loadConversations();
 
   async function send() {
     const message = input.trim();

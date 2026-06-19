@@ -2,8 +2,8 @@ import type { Config } from "tailwindcss";
 
 /**
  * CIPHER design tokens.
- * Direction: a private service seen at midnight — deep ink, warm paper-white
- * text, one restrained brass accent (the concierge bell). Calm and deferential.
+ * Direction: premium private AI OS — deep navy, glass surfaces,
+ * cool blue accent, clean slate typography.
  */
 const config: Config = {
   content: [
@@ -14,18 +14,18 @@ const config: Config = {
     extend: {
       colors: {
         ink: {
-          DEFAULT: "#0E0F11", // page background
-          raised: "#16181B",  // cards / surfaces
-          hair: "#26282C",    // hairline borders
+          DEFAULT: "#050816",
+          raised: "#0B1220",
+          hair: "rgba(96, 165, 250, 0.16)",
         },
         paper: {
-          DEFAULT: "#E8E6E1", // primary text
-          dim: "#8A8B87",     // secondary text
-          faint: "#5C5E5B",   // tertiary / captions
+          DEFAULT: "#F8FAFC",
+          dim: "#CBD5E1",
+          faint: "#94A3B8",
         },
         brass: {
-          DEFAULT: "#B89B6E", // the single accent
-          soft: "#8A744F",
+          DEFAULT: "#3B82F6",
+          soft: "#60A5FA",
         },
       },
       fontFamily: {
@@ -33,10 +33,13 @@ const config: Config = {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       letterSpacing: {
-        eyebrow: "0.22em",
+        eyebrow: "0.24em",
       },
       maxWidth: {
-        reading: "44rem",
+        reading: "72rem",
+      },
+      boxShadow: {
+        glow: "0 0 40px rgba(59, 130, 246, 0.18)",
       },
     },
   },

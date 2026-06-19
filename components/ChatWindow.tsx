@@ -260,11 +260,15 @@ export function ChatWindow() {
                     </div>
                   </button>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteConversation(c.id);
-                    }}
+                 <button
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    alert(`DELETE CLICKED: ${c.id}`);
+
+    deleteConversation(c.id);
+  }}
                     className="ml-2 rounded-full px-2 py-1 text-[13px] text-paper-faint opacity-60 transition hover:bg-red-500/10 hover:text-red-400 hover:opacity-100 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                     title="Delete chat"
                   >

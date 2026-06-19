@@ -14,8 +14,5 @@ export async function GET(request: Request) {
 
   await deleteFact(id);
 
-  return NextResponse.json({
-    ok: true,
-    deleted: id,
-  });
+  return NextResponse.redirect(new URL("/memory", request.url));
 }

@@ -25,23 +25,17 @@ export async function POST(req: NextRequest) {
       .from("conversations")
       .delete()
       .eq("id", id)
-      .select("id");
+      .select("id, title");
 
     if (convError) {
       return NextResponse.json({ error: convError.message }, { status: 500 });
     }
 
-    if (!data || data.length === 0) {
-      return NextResponse.json(
-        { error: "Conversation not found or already deleted." },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json({
       ok: true,
-      deletedCount: data.length,
-      deleted: data,
+      requestedId: id,
+      deletedCount: data?.length ?? 0,
+      deleted: data ?? [],
     });
   } catch (err: any) {
     return NextResponse.json(

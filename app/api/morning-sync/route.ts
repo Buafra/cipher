@@ -25,8 +25,37 @@ async function sendTelegram(message: string) {
   return res.json();
 }
 
+async function getDubaiWeather() {
+  const key = process.env.WEATHER_API_KEY;
+
+  if (!key) {
+    return "🌤️ *Dubai Weather:* Weather API key missing.";
+  }
+
+  const res = await fetch(
+    `https://api.weatherapi.com/v1/current.json?key=${key}&q=Dubai&aqi=no`,
+    { cache: "no-store" }
+  );
+
+  if (!res.ok) {
+    return "🌤️ *Dubai Weather:* Unavailable.";
+  }
+
+  const data = await res.json();
+
+  return [
+    "🌤️ *Dubai Weather*",
+    `${data.current.temp_c}°C, ${data.current.condition.text}`,
+    `Feels like: ${data.current.feelslike_c}°C`,
+    `Humidity: ${data.current.humidity}%`,
+    `Wind: ${data.current.wind_kph} km/h`,
+    `Updated: ${data.current.last_updated}`,
+  ].join("\n");
+}
+
 export async function GET() {
   const now = new Date();
+  const weather = await getDubaiWeather();
 
   const message = [
     "🌅 *Cipher Morning Sync*",
@@ -39,17 +68,16 @@ export async function GET() {
       day: "numeric",
     })}`,
     "",
-    "✅ Telegram delivery is active.",
+    weather,
     "",
-    "*Today’s modules:*",
-    "• AI / Tech news — pending",
-    "• Markets — pending",
-    "• Gold / Silver — pending",
-    "• BTC / ETH — pending",
-    "• Weather — pending",
-    "• DEWA stock — pending",
+    "*Pending modules:*",
+    "• AI / Tech news",
+    "• Markets",
+    "• Gold / Silver",
+    "• BTC / ETH",
+    "• DEWA stock",
     "",
-    "_This is the first Morning Sync scaffold._",
+    "_Morning Sync weather module active._",
   ].join("\n");
 
   const telegram = await sendTelegram(message);

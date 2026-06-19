@@ -21,10 +21,9 @@ function parseTaskFromMessage(message: string) {
     dueAt = d.toISOString();
   }
 
-  if (/tomorrow/i.test(text)) {
+if (/tomorrow|tomrrow|tmrw/i.test(text)) {
     setDate(1);
-    text = text.replace(/tomorrow/i, "").trim();
-  } else if (/today/i.test(text)) {
+text = text.replace(/tomorrow|tomrrow|tmrw/i, "").trim();  } else if (/today/i.test(text)) {
     setDate(0);
     text = text.replace(/today/i, "").trim();
   }

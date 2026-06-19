@@ -1,10 +1,5 @@
 import Link from "next/link";
 
-/**
- * The frame every page sits in: a quiet left rail with the wordmark and
- * the top-level sections from doc §3. Phases that aren't built yet are
- * shown but marked, so the shape of the whole system is visible from day one.
- */
 const NAV = [
   { href: "/", label: "Home", phase: 1 },
   { href: "/chat", label: "Chat", phase: 1 },
@@ -16,34 +11,50 @@ const NAV = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
-      <aside className="hidden md:flex w-60 shrink-0 flex-col border-r hairline px-6 py-8">
-        <div className="wordmark text-lg text-paper">Cipher</div>
-        <p className="mt-1 text-xs text-paper-faint">Private chief of staff</p>
+    <div className="min-h-screen">
+      <div className="flex min-h-screen">
+        <aside className="hidden w-72 shrink-0 flex-col px-5 py-5 md:flex">
+          <div className="glass flex h-full flex-col rounded-3xl px-5 py-6">
+            <div>
+              <div className="wordmark text-lg text-paper">Cipher</div>
+              <p className="mt-2 text-xs text-paper-faint">
+                Private chief of staff
+              </p>
+            </div>
 
-        <nav className="mt-12 flex flex-col gap-1">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group flex items-center justify-between rounded-md px-3 py-2 text-sm text-paper-dim transition-colors hover:bg-ink-raised hover:text-paper"
-            >
-              <span>{item.label}</span>
-              {item.phase > 1 && (
-                <span className="text-[10px] text-paper-faint">soon</span>
-              )}
-            </Link>
-          ))}
-        </nav>
+            <nav className="mt-10 flex flex-col gap-2">
+              {NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="group flex items-center justify-between rounded-2xl px-4 py-3 text-sm text-paper-dim transition-all hover:bg-white/[0.06] hover:text-paper"
+                >
+                  <span>{item.label}</span>
+                  {item.phase > 1 && (
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-paper-faint">
+                      soon
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </nav>
 
-        <div className="mt-auto pt-8 text-[11px] text-paper-faint">
-          Watching quietly.
-        </div>
-      </aside>
+            <div className="mt-auto rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+              <p className="eyebrow">Status</p>
+              <p className="mt-2 text-sm text-paper">Watching quietly.</p>
+              <p className="mt-1 text-xs text-paper-faint">
+                Memory, tasks, and search are online.
+              </p>
+            </div>
+          </div>
+        </aside>
 
-     <main className="flex-1 px-6 py-8 md:px-12 md:py-12">
-  <div className="mx-auto w-full max-w-7xl">{children}</div>
-</main>
+        <main className="flex-1 px-5 py-5 md:pr-8">
+          <div className="mx-auto w-full max-w-7xl rounded-3xl border border-white/10 bg-black/20 p-6 shadow-2xl backdrop-blur-xl md:p-8">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

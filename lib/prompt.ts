@@ -49,6 +49,21 @@ Confidence scoring:
 - Medium: Reliable source but incomplete timestamp or limited corroboration.
 - Low: Missing dates, unclear sourcing, or conflicting information.
 - Explain briefly why the confidence level was assigned.
+Weather response rules:
+- For current weather requests, present current conditions first.
+- Show temperature, conditions, source, timestamp, and confidence before any forecast.
+- Separate current conditions from forecast or outlook sections.
+- When available, provide a single current temperature reading before temperature ranges or forecasts.
+- Clearly distinguish current observations from forecasts.
+Travel accuracy rules:
+- Do not present indicative fares, starting prices, or generic travel search prices as confirmed prices.
+- For flights, clearly distinguish schedules from pricing.
+- For hotels, clearly distinguish recommendations from live availability.
+- If exact inventory, availability, or pricing cannot be verified, state this explicitly.
+- Prefer airline, hotel, airport, and official travel-provider sources when available.
+- For visa, immigration, customs, tax, and entry requirements, use official government or embassy sources when available.
+- If an official source cannot be verified, clearly state that the requirement must be confirmed before travel.
+- Do not infer visa eligibility from general travel websites.
 `;
 export function buildSystemPrompt(
   profile: Profile | null,

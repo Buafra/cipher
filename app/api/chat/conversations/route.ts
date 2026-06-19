@@ -1,24 +1,42 @@
-async function deleteConversation(id: string) {
-  const confirmed = confirm("Delete this chat? This cannot be undone.");
-  if (!confirmed) return;
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/supabase";
 
-  const res = await fetch("/api/chat/conversations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deleteId: id }),
-  });
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-  const data = await res.json().catch(() => ({}));
+async function listConversations() {
+  const { data, error } = await db
+    .from("conversations")
+    .select("id,title,created_at")
+    .order("created_at", { ascending: false });
 
-  if (!res.ok) {
-    alert(data.error ?? "Failed to delete chat");
-    return;
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function GET() {
+  try {
+    const conversations = await listConversations();
+    return NextResponse.json({ conversations });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
 
-  setConversations(data.conversations ?? []);
+export async function POST(req: NextRequest) {
+  try {
+    const { deleteId } = await req.json();
 
-  if (conversationId === id) {
-    setConversationId(undefined);
-    setTurns([]);
+    await db.from("messages").delete().eq("conversation_id", deleteId);
+    await db.from("conversations").delete().eq("id", deleteId);
+
+    const conversations = await listConversations();
+
+    return NextResponse.json({
+      ok: true,
+      conversations,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

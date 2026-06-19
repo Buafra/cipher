@@ -66,7 +66,8 @@ export function ChatWindow() {
   useEffect(() => {
     const SR =
       (typeof window !== "undefined" &&
-        ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) ||
+        ((window as any).SpeechRecognition ||
+          (window as any).webkitSpeechRecognition)) ||
       null;
 
     if (!SR) return;
@@ -82,7 +83,10 @@ export function ChatWindow() {
         transcript += event.results[i][0].transcript;
       }
 
-      const prefix = baseInputRef.current ? baseInputRef.current.trimEnd() + " " : "";
+      const prefix = baseInputRef.current
+        ? baseInputRef.current.trimEnd() + " "
+        : "";
+
       setInput(prefix + transcript);
     };
 
@@ -143,12 +147,12 @@ export function ChatWindow() {
     const confirmed = confirm("Delete this chat? This cannot be undone.");
     if (!confirmed) return;
 
-    const res = await fetch("/api/chat/delete", {
+    const res = await fetch("/api/chat/conversations", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ deleteId: id }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -158,14 +162,12 @@ export function ChatWindow() {
       return;
     }
 
-    setConversations((prev) => prev.filter((c) => c.id !== id));
+    setConversations(data.conversations ?? []);
 
     if (conversationId === id) {
       setConversationId(undefined);
       setTurns([]);
     }
-
-    await loadConversations();
   }
 
   async function send() {
@@ -245,7 +247,9 @@ export function ChatWindow() {
                 key={c.id}
                 className={
                   "group rounded-2xl transition-colors " +
-                  (conversationId === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.05]")
+                  (conversationId === c.id
+                    ? "bg-white/[0.08]"
+                    : "hover:bg-white/[0.05]")
                 }
               >
                 <div className="flex items-center justify-between gap-2 px-3 py-2">
@@ -331,7 +335,11 @@ export function ChatWindow() {
             </div>
           )}
 
-          {voiceError && <div className="mb-2 px-3 text-xs text-paper-faint">{voiceError}</div>}
+          {voiceError && (
+            <div className="mb-2 px-3 text-xs text-paper-faint">
+              {voiceError}
+            </div>
+          )}
 
           <div className="flex items-end gap-2">
             {voiceSupported && (

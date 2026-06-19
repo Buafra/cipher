@@ -9,7 +9,7 @@ async function getDashboard() {
 
   const [{ data: briefing }, { data: tasks }, { data: alerts }] = await Promise.all([
     db.from("briefings").select("content, for_date").eq("user_id", USER_ID).eq("for_date", today).maybeSingle(),
-    db.from("tasks").select("id, title, due_at").eq("user_id", USER_ID).eq("status", "open").order("due_at", { ascending: true, nullsFirst: false }).limit(5),
+    db.from("tasks").select("id, title, due_at").eq("user_id", USER_ID).eq("status", "open").order("due_at", { ascending: true, nullsFirst: false }).limit(10),
     db.from("alerts").select("id, title, body, severity").eq("user_id", USER_ID).eq("read", false).order("created_at", { ascending: false }).limit(5),
   ]);
 

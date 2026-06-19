@@ -4,21 +4,102 @@ import { useState, useRef, useEffect } from "react";
 
 type Turn = { role: "user" | "assistant"; content: string };
 
+// Language for voice input. Change to e.g. "ar-SA" for Arabic, "ar-EG", etc.
+// (You can even make this a dropdown later.)
+const VOICE_LANG = "en-US";
+
 export function ChatWindow() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [remembered, setRemembered] = useState<string[]>([]);
+
+  // Voice input state
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
+
   const endRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const baseInputRef = useRef(""); // text already typed before dictation started
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, busy]);
 
+  // Set up the browser's built-in speech recognition once, if available.
+  useEffect(() => {
+    const SR =
+      (typeof window !== "undefined" &&
+        ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) ||
+      null;
+    if (!SR) return; // browser doesn't support it — mic button stays hidden
+
+    const recognition = new SR();
+    recognition.lang = VOICE_LANG;
+    recognition.interimResults = true; // show words as they're spoken
+    recognition.continuous = false; // one utterance, then auto-stop
+
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      const prefix = baseInputRef.current ? baseInputRef.current.trimEnd() + " " : "";
+      setInput(prefix + transcript);
+    };
+    recognition.onerror = (event: any) => {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setVoiceError("Microphone blocked. Allow mic access in your browser settings.");
+      } else if (event.error === "no-speech") {
+        setVoiceError("Didn't catch that — try again.");
+      } else {
+        setVoiceError("Voice input error. You can still type.");
+      }
+      setListening(false);
+    };
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+    setVoiceSupported(true);
+
+    return () => {
+      try {
+        recognition.abort();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, []);
+
+  function toggleListening() {
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+
+    if (listening) {
+      recognition.stop();
+      setListening(false);
+      return;
+    }
+    setVoiceError("");
+    baseInputRef.current = input; // keep anything already typed
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      // start() throws if already started; ignore.
+    }
+  }
+
   async function send() {
     const message = input.trim();
     if (!message || busy) return;
+
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+    }
 
     setInput("");
     setTurns((t) => [...t, { role: "user", content: message }]);
@@ -93,7 +174,32 @@ export function ChatWindow() {
             {remembered.join(" · ")}
           </div>
         )}
+        {listening && (
+          <div className="mb-2 flex items-center gap-2 px-3 text-xs text-brass">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brass" />
+            Listening… speak now
+          </div>
+        )}
+        {voiceError && <div className="mb-2 px-3 text-xs text-paper-faint">{voiceError}</div>}
+
         <div className="flex items-end gap-2">
+          {voiceSupported && (
+            <button
+              onClick={toggleListening}
+              disabled={busy}
+              aria-label={listening ? "Stop voice input" : "Start voice input"}
+              title={listening ? "Stop voice input" : "Speak to Cipher"}
+              className={
+                "shrink-0 rounded-lg border px-3 py-2 text-sm transition-colors disabled:opacity-40 " +
+                (listening
+                  ? "border-brass bg-brass text-ink"
+                  : "hairline text-paper-dim hover:text-paper")
+              }
+            >
+              {/* simple mic glyph, no icon dependency */}
+              {listening ? "■" : "🎙"}
+            </button>
+          )}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -104,13 +210,13 @@ export function ChatWindow() {
               }
             }}
             rows={1}
-            placeholder="Message Cipher"
+            placeholder={listening ? "Listening…" : "Message Cipher"}
             className="flex-1 resize-none bg-transparent px-3 py-2 text-paper placeholder:text-paper-faint focus:outline-none"
           />
           <button
             onClick={send}
             disabled={busy || !input.trim()}
-            className="rounded-lg bg-brass px-4 py-2 text-sm font-medium text-ink transition-opacity disabled:opacity-40"
+            className="shrink-0 rounded-lg bg-brass px-4 py-2 text-sm font-medium text-ink transition-opacity disabled:opacity-40"
           >
             Send
           </button>

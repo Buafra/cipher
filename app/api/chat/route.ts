@@ -53,19 +53,7 @@ export async function POST(req: NextRequest) {
       .order("created_at", { ascending: true })
       .limit(20);
 
-   const system = `${buildSystemPrompt(profile, facts)}
-
-LIVE DATA RULES:
-For current, live, recent, price, market, weather, news, travel, stock, crypto, regulation, product, or dated questions: always use web search before answering.
-
-Do not mix figures from different dates or sources.
-
-If sources conflict, explain the conflict and provide the date and source of each figure.
-
-Never invent live data, prices, headlines, or statistics.
-
-When live data cannot be verified, clearly state that verification was not possible.
-`;
+    const system = buildSystemPrompt(profile, facts);
     const turns: ChatTurn[] = (history ?? []).map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -75,7 +63,7 @@ When live data cannot be verified, clearly state that verification was not possi
     // only when the message actually needs current info (news, prices,
     // today's facts); otherwise it answers from memory + knowledge at no
     // search cost.
-    const reply = await reason(system, turns, 1024, { webSearch: true, maxSearches: 8 });
+    const reply = await reason(system, turns, 1024, { webSearch: true, maxSearches: 3 });
 
     // 5 — persist the assistant reply.
     await db.from("messages").insert({

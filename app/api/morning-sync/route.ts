@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function sendTelegram(message: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -89,7 +92,7 @@ async function getAiTechNews() {
 }
 
 async function getMetals() {
-  const goldApiKey = process.env.GOLD_API_KEY ?? "";
+  const goldApiKey: string = process.env.GOLD_API_KEY ?? "";
 
   if (goldApiKey.length === 0) {
     return "🥇 *Gold / Silver:* GoldAPI key missing.";
@@ -173,7 +176,6 @@ async function getExchangeRates() {
     );
 
     if (!res.ok) return "💱 *Exchange Rates:* Unavailable.";
-
     const data = await res.json();
 
     const usd = data.conversion_rates?.USD;

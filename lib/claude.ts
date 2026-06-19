@@ -45,8 +45,6 @@ export async function reason(
   const tools = opts.webSearch
     ? [
         {
-          // Current web search tool version. If your account/SDK rejects it,
-          // fall back to "web_search_20250305".
           type: "web_search_20260209",
           name: "web_search",
           max_uses: opts.maxSearches ?? 3,
@@ -54,17 +52,29 @@ export async function reason(
       ]
     : undefined;
 
+  const cleanMessages = (messages ?? [])
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .filter((m) => typeof m.content === "string" && m.content.trim().length > 0)
+    .map((m) => ({
+      role: m.role,
+      content: m.content.trim(),
+    }));
+
+  if (cleanMessages.length === 0) {
+    cleanMessages.push({
+      role: "user",
+      content: "Hello",
+    });
+  }
+
   const res = await client.messages.create({
     model: MODEL,
     max_tokens: maxTokens,
     system,
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
-    // Cast: older SDK type defs may not list this server tool, but the API
-    // accepts it. The cast keeps TypeScript happy without a version bump.
+    messages: cleanMessages,
     ...(tools ? { tools: tools as any } : {}),
   });
 
-  // Join any text blocks the model returned (ignores search-result blocks).
   return res.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)

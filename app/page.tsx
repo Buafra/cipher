@@ -3,7 +3,8 @@ import { Card, Eyebrow } from "@/components/Card";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 async function getDashboard() {
   const today = new Date().toISOString().slice(0, 10);
 

@@ -41,9 +41,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 px-6 py-8 md:px-12 md:py-12">
-        <div className="mx-auto max-w-reading">{children}</div>
-      </main>
+     <main className="flex-1 px-6 py-8 md:px-12 md:py-12">
+  <div className="mx-auto w-full max-w-7xl">{children}</div>
+</main>
     </div>
   );
 }

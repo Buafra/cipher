@@ -196,8 +196,8 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="grid h-[70vh] grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
-      <aside className="rounded-xl border hairline bg-ink-raised p-4">
+<div className="grid h-[78vh] w-full grid-cols-1 gap-5 md:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="rounded-xl border hairline bg-ink-raised p-4">
         <button
           onClick={newChat}
           className="mb-4 w-full rounded-lg bg-brass px-3 py-2 text-sm font-medium text-ink"

@@ -53,8 +53,12 @@ export async function POST(req: NextRequest) {
       .order("created_at", { ascending: true })
       .limit(20);
 
-const webResults = await searchWeb(message);
+const needsWeb =
+  /(latest|today|current|now|recent|news|price|stock|crypto|bitcoin|btc|gold|silver|oil|weather|flight|hotel|market|rate|exchange|schedule|who won|result|source|search|verify|look up|updated)/i.test(message);
 
+const webResults = needsWeb
+  ? await searchWeb(message)
+  : "No live web search needed for this message.";
 const system = `${buildSystemPrompt(profile, facts)}
 
 LIVE WEB RESULTS FROM TAVILY:

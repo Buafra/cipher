@@ -106,7 +106,9 @@ export function ChatWindow() {
     return () => {
       try {
         recognition.abort();
-      } catch {}
+      } catch {
+        // ignore
+      }
     };
   }, []);
 
@@ -126,7 +128,9 @@ export function ChatWindow() {
     try {
       recognition.start();
       setListening(true);
-    } catch {}
+    } catch {
+      // ignore
+    }
   }
 
   function newChat() {
@@ -149,23 +153,20 @@ export function ChatWindow() {
 
     const data = await res.json().catch(() => ({}));
 
-   if (!res.ok) {
-  alert(data.error ?? "Failed to delete chat");
-  return;
-}
+    if (!res.ok) {
+      alert(data.error ?? "Failed to delete chat");
+      return;
+    }
 
-// Remove immediately from screen
-setConversations((prev) =>
-  prev.filter((c) => c.id !== id)
-);
+    setConversations((prev) => prev.filter((c) => c.id !== id));
 
-if (conversationId === id) {
-  setConversationId(undefined);
-  setTurns([]);
-}
+    if (conversationId === id) {
+      setConversationId(undefined);
+      setTurns([]);
+    }
 
-// Reload fresh list from server
-await loadConversations();
+    await loadConversations();
+  }
 
   async function send() {
     const message = input.trim();
@@ -247,7 +248,7 @@ await loadConversations();
                   (conversationId === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.05]")
                 }
               >
-                <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center justify-between gap-2 px-3 py-2">
                   <button
                     onClick={() => loadConversation(c.id)}
                     className="min-w-0 flex-1 text-left"
@@ -265,16 +266,13 @@ await loadConversations();
                     </div>
                   </button>
 
-                 <button
-  onClick={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    alert(`DELETE CLICKED: ${c.id}`);
-
-    deleteConversation(c.id);
-  }}
-                    className="ml-2 rounded-full px-2 py-1 text-[13px] text-paper-faint opacity-60 transition hover:bg-red-500/10 hover:text-red-400 hover:opacity-100 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      deleteConversation(c.id);
+                    }}
+                    className="ml-2 rounded-full border border-red-400/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/20"
                     title="Delete chat"
                   >
                     ✕

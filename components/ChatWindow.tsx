@@ -106,9 +106,7 @@ export function ChatWindow() {
     return () => {
       try {
         recognition.abort();
-      } catch {
-        // ignore
-      }
+      } catch {}
     };
   }, []);
 
@@ -128,9 +126,7 @@ export function ChatWindow() {
     try {
       recognition.start();
       setListening(true);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   function newChat() {
@@ -139,30 +135,32 @@ export function ChatWindow() {
     setInput("");
   }
 
- async function deleteConversation(id: string) {
-  const confirmed = confirm("Delete this chat? This cannot be undone.");
-  if (!confirmed) return;
+  async function deleteConversation(id: string) {
+    const confirmed = confirm("Delete this chat? This cannot be undone.");
+    if (!confirmed) return;
 
-  const res = await fetch("/api/chat/delete", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  });
+    const res = await fetch("/api/chat/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id }),
+    });
 
-  const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => ({}));
 
-  if (!res.ok) {
-    alert(data.error ?? "Failed to delete chat");
-    return;
+    if (!res.ok) {
+      alert(data.error ?? "Failed to delete chat");
+      return;
+    }
+
+    await loadConversations();
+
+    if (conversationId === id) {
+      setConversationId(undefined);
+      setTurns([]);
+    }
   }
-
-  setConversations((prev) => prev.filter((c) => c.id !== id));
-
-  if (conversationId === id) {
-    setConversationId(undefined);
-    setTurns([]);
-  }
-}
 
   async function send() {
     const message = input.trim();
@@ -241,9 +239,7 @@ export function ChatWindow() {
                 key={c.id}
                 className={
                   "group rounded-2xl transition-colors " +
-                  (conversationId === c.id
-                    ? "bg-white/[0.08]"
-                    : "hover:bg-white/[0.05]")
+                  (conversationId === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.05]")
                 }
               >
                 <div className="flex items-center justify-between px-3 py-2">

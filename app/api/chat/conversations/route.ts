@@ -1,20 +1,24 @@
-import { NextResponse } from "next/server";
-import { db, USER_ID } from "@/lib/supabase";
+async function deleteConversation(id: string) {
+  const confirmed = confirm("Delete this chat? This cannot be undone.");
+  if (!confirmed) return;
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+  const res = await fetch("/api/chat/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deleteId: id }),
+  });
 
-export async function GET() {
-  const { data, error } = await db
-    .from("conversations")
-    .select("id, title, created_at")
-    .eq("user_id", USER_ID)
-    .order("created_at", { ascending: false })
-    .limit(30);
+  const data = await res.json().catch(() => ({}));
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!res.ok) {
+    alert(data.error ?? "Failed to delete chat");
+    return;
   }
 
-  return NextResponse.json({ conversations: data ?? [] });
+  setConversations(data.conversations ?? []);
+
+  if (conversationId === id) {
+    setConversationId(undefined);
+    setTurns([]);
+  }
 }

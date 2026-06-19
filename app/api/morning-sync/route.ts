@@ -19,16 +19,12 @@ async function sendTelegram(message: string) {
     }),
   });
 
-  if (!res.ok) {
-    throw new Error("Telegram send failed");
-  }
-
+  if (!res.ok) throw new Error("Telegram send failed");
   return res.json();
 }
 
 async function getDubaiWeather() {
   const key = process.env.WEATHER_API_KEY;
-
   if (!key) return "🌤️ *Dubai Weather:* Weather API key missing.";
 
   try {
@@ -38,7 +34,6 @@ async function getDubaiWeather() {
     );
 
     if (!res.ok) return "🌤️ *Dubai Weather:* Unavailable.";
-
     const data = await res.json();
 
     return [
@@ -55,7 +50,6 @@ async function getDubaiWeather() {
 
 async function getAiTechNews() {
   const key = process.env.TAVILY_API_KEY;
-
   if (!key) return "🤖 *AI + Tech News:* Tavily API key missing.";
 
   try {
@@ -74,19 +68,13 @@ async function getAiTechNews() {
     });
 
     if (!res.ok) return "🤖 *AI + Tech News:* Unavailable.";
-
     const data = await res.json();
 
-    if (!data.results?.length) {
-      return "🤖 *AI + Tech News:* No fresh results found.";
-    }
+    if (!data.results?.length) return "🤖 *AI + Tech News:* No fresh results found.";
 
     const headlines = data.results
       .slice(0, 4)
-      .map(
-        (item: any, index: number) =>
-          `${index + 1}. ${item.title || "Untitled"}`
-      )
+      .map((item: any, index: number) => `${index + 1}. ${item.title || "Untitled"}`)
       .join("\n");
 
     return ["🤖 *AI + Tech News*", headlines].join("\n");
@@ -97,7 +85,6 @@ async function getAiTechNews() {
 
 async function getMetals() {
   const key = process.env.GOLD_API_KEY;
-
   if (!key) return "🥇 *Gold / Silver:* GoldAPI key missing.";
 
   async function fetchMetal(symbol: "XAU" | "XAG") {
@@ -123,18 +110,8 @@ async function getMetals() {
 
     const lines = ["🥇 *Gold / Silver*"];
 
-    if (gold?.price) {
-      lines.push(`Gold: $${Number(gold.price).toFixed(2)} / oz`);
-    } else {
-      lines.push("Gold: unavailable");
-    }
-
-    if (silver?.price) {
-      lines.push(`Silver: $${Number(silver.price).toFixed(2)} / oz`);
-    } else {
-      lines.push("Silver: unavailable");
-    }
-
+    lines.push(gold?.price ? `Gold: $${Number(gold.price).toFixed(2)} / oz` : "Gold: unavailable");
+    lines.push(silver?.price ? `Silver: $${Number(silver.price).toFixed(2)} / oz` : "Silver: unavailable");
     lines.push("Source: GoldAPI");
 
     return lines.join("\n");
@@ -167,6 +144,38 @@ async function getCrypto() {
   }
 }
 
+async function getExchangeRates() {
+  const key = process.env.EXCHANGE_RATE_API_KEY;
+  if (!key) return "💱 *Exchange Rates:* API key missing.";
+
+  try {
+    const res = await fetch(
+      `https://v6.exchangerate-api.com/v6/${key}/latest/AED`,
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) return "💱 *Exchange Rates:* Unavailable.";
+
+    const data = await res.json();
+
+    const usd = data.conversion_rates?.USD;
+    const eur = data.conversion_rates?.EUR;
+    const gbp = data.conversion_rates?.GBP;
+    const inr = data.conversion_rates?.INR;
+
+    return [
+      "💱 *Exchange Rates*",
+      `AED → USD: ${usd}`,
+      `AED → EUR: ${eur}`,
+      `AED → GBP: ${gbp}`,
+      `AED → INR: ${inr}`,
+      "Source: ExchangeRate API",
+    ].join("\n");
+  } catch {
+    return "💱 *Exchange Rates:* Unavailable.";
+  }
+}
+
 export async function GET() {
   const now = new Date();
 
@@ -174,6 +183,7 @@ export async function GET() {
   const news = await getAiTechNews();
   const metals = await getMetals();
   const crypto = await getCrypto();
+  const fx = await getExchangeRates();
 
   const message = [
     "🌅 *Cipher Morning Sync*",
@@ -194,12 +204,13 @@ export async function GET() {
     "",
     crypto,
     "",
+    fx,
+    "",
     "*Pending modules:*",
     "• Markets",
     "• DEWA stock",
-    "• AED Exchange Rates",
     "",
-    "_Morning Sync weather, news, metals, and crypto modules active._",
+    "_Morning Sync weather, news, metals, crypto, and FX modules active._",
   ].join("\n");
 
   const telegram = await sendTelegram(message);

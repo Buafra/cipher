@@ -8,15 +8,19 @@ async function sendTelegram(message: string) {
     throw new Error("Missing Telegram environment variables");
   }
 
-  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: message,
-      parse_mode: "Markdown",
-    }),
-  });
+  const res = await fetch(
+    `https://api.telegram.org/bot${token}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: "Markdown",
+        disable_web_page_preview: true,
+      }),
+    }
+  );
 
   if (!res.ok) {
     throw new Error("Telegram send failed");
@@ -32,30 +36,86 @@ async function getDubaiWeather() {
     return "🌤️ *Dubai Weather:* Weather API key missing.";
   }
 
-  const res = await fetch(
-    `https://api.weatherapi.com/v1/current.json?key=${key}&q=Dubai&aqi=no`,
-    { cache: "no-store" }
-  );
+  try {
+    const res = await fetch(
+      `https://api.weatherapi.com/v1/current.json?key=${key}&q=Dubai&aqi=no`,
+      { cache: "no-store" }
+    );
 
-  if (!res.ok) {
+    if (!res.ok) {
+      return "🌤️ *Dubai Weather:* Unavailable.";
+    }
+
+    const data = await res.json();
+
+    return [
+      "🌤️ *Dubai Weather*",
+      `${data.current.temp_c}°C, ${data.current.condition.text}`,
+      `Feels like: ${data.current.feelslike_c}°C`,
+      `Humidity: ${data.current.humidity}%`,
+      `Wind: ${data.current.wind_kph} km/h`,
+    ].join("\n");
+  } catch {
     return "🌤️ *Dubai Weather:* Unavailable.";
   }
+}
 
-  const data = await res.json();
+async function getAiTechNews() {
+  const key = process.env.TAVILY_API_KEY;
 
-  return [
-    "🌤️ *Dubai Weather*",
-    `${data.current.temp_c}°C, ${data.current.condition.text}`,
-    `Feels like: ${data.current.feelslike_c}°C`,
-    `Humidity: ${data.current.humidity}%`,
-    `Wind: ${data.current.wind_kph} km/h`,
-    `Updated: ${data.current.last_updated}`,
-  ].join("\n");
+  if (!key) {
+    return "🤖 *AI + Tech News:* Tavily API key missing.";
+  }
+
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        api_key: key,
+        query:
+          "latest AI and technology news OpenAI Anthropic Google Microsoft Apple NVIDIA",
+        topic: "news",
+        search_depth: "basic",
+        max_results: 4,
+        include_answer: false,
+      }),
+    });
+
+    if (!res.ok) {
+      return "🤖 *AI + Tech News:* Unavailable.";
+    }
+
+    const data = await res.json();
+
+    if (!data.results?.length) {
+      return "🤖 *AI + Tech News:* No fresh results found.";
+    }
+
+    const headlines = data.results
+      .slice(0, 4)
+      .map(
+        (item: any, index: number) =>
+          `${index + 1}. ${item.title || "Untitled"}`
+      )
+      .join("\n");
+
+    return [
+      "🤖 *AI + Tech News*",
+      headlines,
+    ].join("\n");
+  } catch {
+    return "🤖 *AI + Tech News:* Unavailable.";
+  }
 }
 
 export async function GET() {
   const now = new Date();
+
   const weather = await getDubaiWeather();
+  const news = await getAiTechNews();
 
   const message = [
     "🌅 *Cipher Morning Sync*",
@@ -70,14 +130,16 @@ export async function GET() {
     "",
     weather,
     "",
+    news,
+    "",
     "*Pending modules:*",
-    "• AI / Tech news",
     "• Markets",
     "• Gold / Silver",
     "• BTC / ETH",
     "• DEWA stock",
+    "• AED Exchange Rates",
     "",
-    "_Morning Sync weather module active._",
+    "_Morning Sync weather and news modules active._",
   ].join("\n");
 
   const telegram = await sendTelegram(message);

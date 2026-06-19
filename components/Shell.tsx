@@ -8,7 +8,7 @@ import Link from "next/link";
 const NAV = [
   { href: "/", label: "Home", phase: 1 },
   { href: "/chat", label: "Chat", phase: 1 },
-  { href: "/tasks", label: "Tasks", phase: 2 },
+  { href: "/tasks", label: "Tasks", phase: 1 },
   { href: "/settings", label: "Memory", phase: 1 },
   { href: "/finance", label: "Finance", phase: 3 },
   { href: "/health", label: "Health", phase: 4 },

@@ -46,6 +46,21 @@ export async function DELETE(
 ) {
   const conversationId = params.id;
 
+  const { data: conversation, error: checkError } = await db
+    .from("conversations")
+    .select("id")
+    .eq("id", conversationId)
+    .eq("user_id", USER_ID)
+    .maybeSingle();
+
+  if (checkError) {
+    return NextResponse.json({ error: checkError.message }, { status: 500 });
+  }
+
+  if (!conversation) {
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+  }
+
   const { error: msgError } = await db
     .from("messages")
     .delete()
@@ -55,15 +70,20 @@ export async function DELETE(
     return NextResponse.json({ error: msgError.message }, { status: 500 });
   }
 
-  const { error: convError } = await db
+  const { data: deletedConversation, error: convError } = await db
     .from("conversations")
     .delete()
     .eq("id", conversationId)
-    .eq("user_id", USER_ID);
+    .eq("user_id", USER_ID)
+    .select("id")
+    .single();
 
   if (convError) {
     return NextResponse.json({ error: convError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    deletedConversation,
+  });
 }

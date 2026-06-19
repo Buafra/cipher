@@ -77,9 +77,25 @@ export default async function Home() {
               <li key={t.id} className="flex items-center justify-between py-3">
                 <span className="text-paper">{t.title}</span>
                 {t.due_at && (
-                  <span className="text-xs text-paper-faint">
-                    {new Date(t.due_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                  </span>
+<span className="text-xs text-paper-faint">
+  {t.due_at
+    ? new Date(t.due_at).toLocaleString("en-AE", {
+        timeZone: "Asia/Dubai",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "No due date"}
+</span>{new Date(t.due_at).toLocaleString("en-AE", {
+  timeZone: "Asia/Dubai",
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+})}                  </span>
                 )}
               </li>
             ))}

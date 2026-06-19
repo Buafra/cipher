@@ -40,3 +40,30 @@ export async function GET(
     messages: messages ?? [],
   });
 }
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { id: string } }
+) {
+  const conversationId = params.id;
+
+  const { error: msgError } = await db
+    .from("messages")
+    .delete()
+    .eq("conversation_id", conversationId);
+
+  if (msgError) {
+    return NextResponse.json({ error: msgError.message }, { status: 500 });
+  }
+
+  const { error: convError } = await db
+    .from("conversations")
+    .delete()
+    .eq("id", conversationId)
+    .eq("user_id", USER_ID);
+
+  if (convError) {
+    return NextResponse.json({ error: convError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

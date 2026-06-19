@@ -70,11 +70,16 @@ async function getAiTechNews() {
     if (!res.ok) return "🤖 *AI + Tech News:* Unavailable.";
     const data = await res.json();
 
-    if (!data.results?.length) return "🤖 *AI + Tech News:* No fresh results found.";
+    if (!data.results?.length) {
+      return "🤖 *AI + Tech News:* No fresh results found.";
+    }
 
     const headlines = data.results
       .slice(0, 4)
-      .map((item: any, index: number) => `${index + 1}. ${item.title || "Untitled"}`)
+      .map(
+        (item: { title?: string }, index: number) =>
+          `${index + 1}. ${item.title || "Untitled"}`
+      )
       .join("\n");
 
     return ["🤖 *AI + Tech News*", headlines].join("\n");
@@ -84,13 +89,16 @@ async function getAiTechNews() {
 }
 
 async function getMetals() {
-  const key = process.env.GOLD_API_KEY;
-  if (!key) return "🥇 *Gold / Silver:* GoldAPI key missing.";
+  const goldApiKey = process.env.GOLD_API_KEY ?? "";
+
+  if (goldApiKey.length === 0) {
+    return "🥇 *Gold / Silver:* GoldAPI key missing.";
+  }
 
   async function fetchMetal(symbol: "XAU" | "XAG") {
     const res = await fetch(`https://www.goldapi.io/api/${symbol}/USD`, {
       headers: {
-        "x-access-token": key,
+        "x-access-token": goldApiKey,
         "Content-Type": "application/json",
       },
       cache: "no-store",
@@ -110,8 +118,18 @@ async function getMetals() {
 
     const lines = ["🥇 *Gold / Silver*"];
 
-    lines.push(gold?.price ? `Gold: $${Number(gold.price).toFixed(2)} / oz` : "Gold: unavailable");
-    lines.push(silver?.price ? `Silver: $${Number(silver.price).toFixed(2)} / oz` : "Silver: unavailable");
+    lines.push(
+      gold?.price
+        ? `Gold: $${Number(gold.price).toFixed(2)} / oz`
+        : "Gold: unavailable"
+    );
+
+    lines.push(
+      silver?.price
+        ? `Silver: $${Number(silver.price).toFixed(2)} / oz`
+        : "Silver: unavailable"
+    );
+
     lines.push("Source: GoldAPI");
 
     return lines.join("\n");

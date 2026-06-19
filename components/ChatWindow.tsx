@@ -139,23 +139,30 @@ export function ChatWindow() {
     setInput("");
   }
 
-  async function deleteConversation(id: string) {
-    const confirmed = confirm("Delete this chat? This cannot be undone.");
-    if (!confirmed) return;
+ async function deleteConversation(id: string) {
+  const confirmed = confirm("Delete this chat? This cannot be undone.");
+  if (!confirmed) return;
 
-    const res = await fetch(`/api/chat/conversation/${id}`, {
-      method: "DELETE",
-    });
+  const res = await fetch("/api/chat/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
 
-    if (res.ok) {
-      setConversations((prev) => prev.filter((c) => c.id !== id));
+  const data = await res.json().catch(() => ({}));
 
-      if (conversationId === id) {
-        setConversationId(undefined);
-        setTurns([]);
-      }
-    }
+  if (!res.ok) {
+    alert(data.error ?? "Failed to delete chat");
+    return;
   }
+
+  setConversations((prev) => prev.filter((c) => c.id !== id));
+
+  if (conversationId === id) {
+    setConversationId(undefined);
+    setTurns([]);
+  }
+}
 
   async function send() {
     const message = input.trim();

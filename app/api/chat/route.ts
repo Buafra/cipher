@@ -59,8 +59,11 @@ export async function POST(req: NextRequest) {
       content: m.content,
     }));
 
-    // 4 — reason.
-    const reply = await reason(system, turns);
+    // 3 + 4 — reason, with live web access. Claude searches the web itself
+    // only when the message actually needs current info (news, prices,
+    // today's facts); otherwise it answers from memory + knowledge at no
+    // search cost.
+    const reply = await reason(system, turns, 1024, { webSearch: true, maxSearches: 3 });
 
     // 5 — persist the assistant reply.
     await db.from("messages").insert({

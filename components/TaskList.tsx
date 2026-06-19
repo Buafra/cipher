@@ -40,10 +40,14 @@ export function TaskList({ initialTasks }: { initialTasks: Task[] }) {
     });
   }
 
-  async function remove(id: string) {
-    setTasks((prev) => prev.filter((x) => x.id !== id));
-    await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
-  }
+ async function remove(id: string) {
+  setTasks((prev) => prev.filter((x) => x.id !== id));
+  await fetch("/api/tasks", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+}
 
   const open = tasks.filter((t) => t.status !== "done");
   const done = tasks.filter((t) => t.status === "done");

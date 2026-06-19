@@ -51,6 +51,11 @@ export default function SystemPage() {
           </span>
         </div>
 
+        <div className="mb-4 border-b border-white/10 pb-3 text-sm text-paper-dim">
+          <p>Environment: {process.env.NODE_ENV}</p>
+          <p>Cipher Version: 0.1.0</p>
+        </div>
+
         <div className="space-y-3">
           {services.map((service) => (
             <div

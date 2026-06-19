@@ -6,12 +6,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export default async function TasksPage() {
-  const { data } = await db
+  const { data, error } = await db
     .from("tasks")
     .select("*")
     .eq("user_id", USER_ID)
     .order("status", { ascending: true })
     .order("due_at", { ascending: true, nullsFirst: false });
+
+  if (error) {
+    return <p className="text-red-400">Tasks load error: {error.message}</p>;
+  }
 
   return (
     <>

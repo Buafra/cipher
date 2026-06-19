@@ -139,6 +139,24 @@ export function ChatWindow() {
     setInput("");
   }
 
+  async function deleteConversation(id: string) {
+    const confirmed = confirm("Delete this chat? This cannot be undone.");
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/chat/conversation/${id}`, {
+      method: "DELETE",
+    });
+
+    if (res.ok) {
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+
+      if (conversationId === id) {
+        setConversationId(undefined);
+        setTurns([]);
+      }
+    }
+  }
+
   async function send() {
     const message = input.trim();
     if (!message || busy) return;
@@ -196,11 +214,11 @@ export function ChatWindow() {
   }
 
   return (
-<div className="grid h-[78vh] w-full grid-cols-1 gap-5 md:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-xl border hairline bg-ink-raised p-4">
+    <div className="grid h-[78vh] w-full grid-cols-1 gap-5 md:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="glass rounded-3xl p-4">
         <button
           onClick={newChat}
-          className="mb-4 w-full rounded-lg bg-brass px-3 py-2 text-sm font-medium text-ink"
+          className="mb-4 w-full rounded-2xl bg-brass px-3 py-3 text-sm font-medium text-white transition hover:opacity-90"
         >
           New chat
         </button>
@@ -212,32 +230,52 @@ export function ChatWindow() {
             <p className="text-xs text-paper-faint">No saved chats yet.</p>
           ) : (
             conversations.map((c) => (
-              <button
+              <div
                 key={c.id}
-                onClick={() => loadConversation(c.id)}
                 className={
-                  "block w-full rounded-md px-3 py-2 text-left text-xs transition-colors " +
+                  "group rounded-2xl transition-colors " +
                   (conversationId === c.id
-                    ? "bg-ink text-paper"
-                    : "text-paper-dim hover:bg-ink hover:text-paper")
+                    ? "bg-white/[0.08]"
+                    : "hover:bg-white/[0.05]")
                 }
               >
-                <div className="truncate">{c.title || "Untitled chat"}</div>
-                <div className="mt-1 text-[10px] text-paper-faint">
-                  {new Date(c.created_at).toLocaleDateString(undefined, {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
+                <div className="flex items-center justify-between px-3 py-2">
+                  <button
+                    onClick={() => loadConversation(c.id)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="truncate text-xs text-paper">
+                      {c.title || "Untitled chat"}
+                    </div>
+
+                    <div className="mt-1 text-[10px] text-paper-faint">
+                      {new Date(c.created_at).toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteConversation(c.id);
+                    }}
+                    className="ml-2 rounded-full px-2 py-1 text-[11px] text-paper-faint opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+                    title="Delete chat"
+                  >
+                    ✕
+                  </button>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>
       </aside>
 
-      <div className="flex flex-col rounded-xl border hairline bg-ink-raised">
-        <div className="flex items-center justify-between border-b hairline px-4 py-2">
+      <div className="glass flex flex-col rounded-3xl">
+        <div className="flex items-center justify-between border-b hairline px-5 py-3">
           <span className="text-xs text-paper-faint">
             {conversationId ? "Saved conversation" : "New conversation"}
           </span>
@@ -255,8 +293,8 @@ export function ChatWindow() {
               <div
                 className={
                   t.role === "user"
-                    ? "inline-block max-w-[85%] rounded-2xl bg-ink px-4 py-2 text-left text-paper"
-                    : "inline-block max-w-[90%] whitespace-pre-line font-display text-[1.05rem] font-light leading-relaxed text-paper"
+                    ? "inline-block max-w-[85%] rounded-2xl border border-blue-500/20 bg-blue-600/20 px-4 py-2 text-left text-paper"
+                    : "inline-block max-w-[90%] whitespace-pre-line rounded-2xl border border-pink-500/10 bg-white/[0.035] px-5 py-4 font-display text-[1.05rem] font-light leading-relaxed text-paper"
                 }
               >
                 {t.content}
@@ -277,8 +315,8 @@ export function ChatWindow() {
           )}
 
           {listening && (
-            <div className="mb-2 flex items-center gap-2 px-3 text-xs text-brass">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brass" />
+            <div className="mb-2 flex items-center gap-2 px-3 text-xs text-accent">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent" />
               Listening… speak now
             </div>
           )}
@@ -293,9 +331,9 @@ export function ChatWindow() {
                 aria-label={listening ? "Stop voice input" : "Start voice input"}
                 title={listening ? "Stop voice input" : "Speak to Cipher"}
                 className={
-                  "shrink-0 rounded-lg border px-3 py-2 text-sm transition-colors disabled:opacity-40 " +
+                  "shrink-0 rounded-xl border px-3 py-2 text-sm transition-colors disabled:opacity-40 " +
                   (listening
-                    ? "border-brass bg-brass text-ink"
+                    ? "border-accent bg-accent text-ink"
                     : "hairline text-paper-dim hover:text-paper")
                 }
               >
@@ -314,13 +352,13 @@ export function ChatWindow() {
               }}
               rows={1}
               placeholder={listening ? "Listening…" : "Message Cipher"}
-              className="flex-1 resize-none bg-transparent px-3 py-2 text-paper placeholder:text-paper-faint focus:outline-none"
+              className="flex-1 resize-none rounded-xl bg-white/[0.035] px-4 py-3 text-paper placeholder:text-paper-faint focus:outline-none"
             />
 
             <button
               onClick={send}
               disabled={busy || !input.trim()}
-              className="shrink-0 rounded-lg bg-brass px-4 py-2 text-sm font-medium text-ink transition-opacity disabled:opacity-40"
+              className="shrink-0 rounded-xl bg-brass px-5 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               Send
             </button>

@@ -23,7 +23,23 @@ export function ChatWindow() {
   const endRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const baseInputRef = useRef(""); // text already typed before dictation started
+useEffect(() => {
+  async function loadHistory() {
+    try {
+      const res = await fetch("/api/chat/history", { cache: "no-store" });
+      const data = await res.json();
 
+      if (res.ok) {
+        setConversationId(data.conversationId ?? undefined);
+        setTurns(data.messages ?? []);
+      }
+    } catch {
+      // ignore history load errors
+    }
+  }
+
+  loadHistory();
+}, []);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, busy]);

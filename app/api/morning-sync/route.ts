@@ -143,12 +143,37 @@ async function getMetals() {
   }
 }
 
+async function getCrypto() {
+  try {
+    const res = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true",
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) return "₿ *Crypto:* Unavailable.";
+
+    const data = await res.json();
+    const btc = data.bitcoin;
+    const eth = data.ethereum;
+
+    return [
+      "₿ *Crypto*",
+      `BTC: $${btc.usd.toLocaleString()} (${btc.usd_24h_change.toFixed(2)}%)`,
+      `ETH: $${eth.usd.toLocaleString()} (${eth.usd_24h_change.toFixed(2)}%)`,
+      "Source: CoinGecko",
+    ].join("\n");
+  } catch {
+    return "₿ *Crypto:* Unavailable.";
+  }
+}
+
 export async function GET() {
   const now = new Date();
 
   const weather = await getDubaiWeather();
   const news = await getAiTechNews();
   const metals = await getMetals();
+  const crypto = await getCrypto();
 
   const message = [
     "🌅 *Cipher Morning Sync*",
@@ -167,13 +192,14 @@ export async function GET() {
     "",
     metals,
     "",
+    crypto,
+    "",
     "*Pending modules:*",
     "• Markets",
-    "• BTC / ETH",
     "• DEWA stock",
     "• AED Exchange Rates",
     "",
-    "_Morning Sync weather, news, and metals modules active._",
+    "_Morning Sync weather, news, metals, and crypto modules active._",
   ].join("\n");
 
   const telegram = await sendTelegram(message);

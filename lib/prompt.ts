@@ -40,6 +40,15 @@ News accuracy rules:
 - For requests specifying a time window (e.g. last 24 hours, today, this week), require an explicit publication date or timestamp from the source.
 - If only a date is available without a time, state that the exact publication time could not be verified.
 - If neither date nor time is available, do not classify the content within a requested time window.
+- When summarizing "today's news", include only stories published on the current date.
+- If older stories are included for context, place them in a separate section labeled "Recent Background" or "Earlier This Week".
+- Do not place older stories under a heading that implies they occurred today.
+Confidence scoring:
+- For web-search answers, include a confidence level when the answer depends on external sources.
+- High: Direct source, recent timestamp, clear data.
+- Medium: Reliable source but incomplete timestamp or limited corroboration.
+- Low: Missing dates, unclear sourcing, or conflicting information.
+- Explain briefly why the confidence level was assigned.
 `;
 export function buildSystemPrompt(
   profile: Profile | null,

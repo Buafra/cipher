@@ -145,17 +145,15 @@ export function TaskList({ initialTasks = [] }: { initialTasks?: Task[] }) {
                   {t.title}
                 </span>
 
-                {t.due_at && (
-                  <span className="text-xs text-paper-faint">
-                    {new Date(t.due_at).toLocaleDateString(
-                      undefined,
-                      {
-                        month: "short",
-                        day: "numeric",
-                      }
-                    )}
-                  </span>
-                )}
+              {t.due_at && (
+  <span className="text-xs text-paper-faint">
+    {new Date(t.due_at).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })}
+  </span>
+)}
 
                 <button
                   onClick={() => remove(t.id)}

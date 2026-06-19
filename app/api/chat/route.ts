@@ -42,7 +42,37 @@ export async function POST(req: NextRequest) {
       role: "user",
       content: message,
     });
+const taskMatch = message.match(
+  /(?:add task|create task|remind me to|todo)\s+(.+)/i
+);
 
+if (taskMatch) {
+  const title = taskMatch[1].trim();
+
+  const { data, error } = await db
+    .from("tasks")
+    .insert({
+      user_id: USER_ID,
+      title,
+      notes: "",
+      due_at: null,
+      status: "open",
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  const reply = `✅ Task added: ${data.title}`;
+
+  await db.from("messages").insert({
+    conversation_id: convId,
+    role: "assistant",
+    content: reply,
+  });
+
+  return NextResponse.json({ reply, conversationId: convId });
+}
     // 2 — gather stored context.
     const [profile, facts] = await Promise.all([loadProfile(), loadMemory()]);
 

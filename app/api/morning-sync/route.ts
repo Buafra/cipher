@@ -312,6 +312,149 @@ async function getExchangeRates() {
   }
 }
 
+async function askClaude(prompt: string, maxTokens = 600) {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return "";
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: process.env.CIPHER_MODEL ?? "claude-sonnet-4-6",
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) return "";
+
+    const data = await res.json();
+    return data.content?.[0]?.text?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+async function getExecutiveInsight(news: string[]) {
+  const prompt = `
+You are Faisal Buafra's private executive strategy advisor.
+
+Based on today's AI and technology news, return exactly:
+
+Executive Insight:
+<one short executive sentence>
+
+Recommended Action:
+<one short practical action>
+
+Focus on DEWA, utilities, AI strategy, risk, resilience, sovereign AI, and Cipher.
+
+Maximum 55 words total.
+No hype. No generic filler.
+
+News:
+${news.join("\n\n")}
+`;
+
+  const result = await askClaude(prompt, 300);
+
+  return (
+    result
+      ?.replaceAll("**", "")
+      .replaceAll("*", "")
+      .trim() ||
+    `Executive Insight:
+AI and technology shifts should be monitored for strategic, operational, and resilience impact.
+
+Recommended Action:
+Keep Cipher stable while expanding intelligence sources carefully.`
+  );
+}
+async function getWeeklyStrategyBrief(news: string[]) {
+  const prompt = `
+You are Faisal Buafra's weekly strategy advisor.
+
+Create a concise Sunday strategy brief based on this week's AI and technology signals.
+
+Return exactly:
+
+Weekly Strategy Brief:
+- strategic theme 1
+- strategic theme 2
+- strategic theme 3
+
+Watch Next Week:
+- item 1
+- item 2
+
+Focus on DEWA, utilities, AI, risk, resilience, local AI, model routing, and executive strategy.
+
+No hype. No generic filler.
+
+News:
+${news.join("\n\n")}
+`;
+
+  return await askClaude(prompt, 500);
+}
+
+async function getImageSummaryPrompt({
+  date,
+  weather,
+  news,
+  metals,
+  crypto,
+  fx,
+  executiveInsight,
+}: {
+  date: string;
+  weather: string;
+  news: string[];
+  metals: { gold: string; silver: string };
+  crypto: { btc: string; eth: string };
+  fx: { usd: string | number; eur: string | number; gbp: string | number; inr: string | number };
+  executiveInsight: string;
+}) {
+  const prompt = `
+Create one image-generation prompt only.
+
+Image concept:
+A premium executive intelligence dashboard card for Telegram.
+
+Style:
+Black and gold, luxury, clean, minimal, Bloomberg-style, futuristic but professional.
+
+Include these sections visually:
+- Cipher Morning Sync
+- ${date}
+- Dubai weather: ${weather}
+- AI + Tech Intelligence
+- Gold: ${metals.gold}
+- Silver: ${metals.silver}
+- BTC: ${crypto.btc}
+- ETH: ${crypto.eth}
+- AED FX: USD ${fx.usd}, EUR ${fx.eur}, GBP ${fx.gbp}, INR ${fx.inr}
+- Executive insight summary
+
+Use no small unreadable text.
+Make it premium, executive, and suitable for Faisal Buafra.
+
+Executive insight:
+${executiveInsight}
+
+News:
+${news.slice(0, 2).join("\n\n")}
+`;
+
+  return await askClaude(prompt, 500);
+}
+
 function buildEmailHtml({
   date,
   weather,
@@ -475,13 +618,33 @@ export async function GET() {
     day: "numeric",
   });
 
-  const [weather, news, metals, crypto, fx] = await Promise.all([
-    getDubaiWeather(),
-    getAiTechNews(),
-    getMetals(),
-    getCrypto(),
-    getExchangeRates(),
-  ]);
+ const [weather, news, metals, crypto, fx] = await Promise.all([
+  getDubaiWeather(),
+  getAiTechNews(),
+  getMetals(),
+  getCrypto(),
+  getExchangeRates(),
+]);
+
+const executiveInsight = await getExecutiveInsight(news);
+
+const isSunday =
+  now.toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "Asia/Dubai",
+  }) === "Sunday";
+
+const weeklyBrief = isSunday ? await getWeeklyStrategyBrief(news) : "";
+
+//const imageSummaryPrompt = await getImageSummaryPrompt({
+ // date,
+ // weather,
+ // news,
+ // metals,
+ // crypto,
+//  fx,
+//  executiveInsight,
+//});
 
   const telegramNews = news
     .slice(0, 4)
@@ -500,20 +663,26 @@ export async function GET() {
     .join("\n\n");
 
   const telegramMessage = [
-    "🌅 <b>Cipher Morning Sync</b>",
-    "",
-    `Date: ${escapeHtml(date)}`,
-    "",
-    `🌤️ <b>Dubai Weather</b>\n${escapeHtml(weather)}`,
-    "",
-    `🤖 <b>AI + Tech News</b>\n${telegramNews}`,
-    "",
-    `🥇 <b>Gold / Silver</b>\nGold: ${escapeHtml(metals.gold)}\nSilver: ${escapeHtml(metals.silver)}`,
-    "",
-    `₿ <b>Crypto</b>\nBTC: ${escapeHtml(crypto.btc)}\nETH: ${escapeHtml(crypto.eth)}`,
-    "",
-    `💱 <b>Exchange Rates</b>\nAED → USD: ${escapeHtml(formatNumber(fx.usd))}\nAED → EUR: ${escapeHtml(formatNumber(fx.eur))}\nAED → GBP: ${escapeHtml(formatNumber(fx.gbp))}\nAED → INR: ${escapeHtml(formatNumber(fx.inr))}`,
-  ].join("\n");
+  "🌅 <b>Cipher Morning Sync</b>",
+  "",
+  `Date: ${escapeHtml(date)}`,
+  "",
+  `🌤️ <b>Dubai Weather</b>\n${escapeHtml(weather)}`,
+  "",
+  `🧠 <b>Executive Insight</b>\n${escapeHtml(executiveInsight)}`,
+  "",
+  weeklyBrief
+    ? `📌 <b>Weekly Strategy Brief</b>\n${escapeHtml(weeklyBrief)}`
+    : "",
+  "",
+  `🤖 <b>AI + Tech News</b>\n${telegramNews}`,
+  "",
+  `🥇 <b>Gold / Silver</b>\nGold: ${escapeHtml(metals.gold)}\nSilver: ${escapeHtml(metals.silver)}`,
+  "",
+  `₿ <b>Crypto</b>\nBTC: ${escapeHtml(crypto.btc)}\nETH: ${escapeHtml(crypto.eth)}`,
+  "",
+  `💱 <b>Exchange Rates</b>\nAED → USD: ${escapeHtml(formatNumber(fx.usd))}\nAED → EUR: ${escapeHtml(formatNumber(fx.eur))}\nAED → GBP: ${escapeHtml(formatNumber(fx.gbp))}\nAED → INR: ${escapeHtml(formatNumber(fx.inr))}`,
+].filter(Boolean).join("\n");
 
   const html = buildEmailHtml({ date, weather, news, metals, crypto, fx });
 

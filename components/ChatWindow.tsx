@@ -363,7 +363,7 @@ export function ChatWindow() {
               {conversationId ? "Saved conversation" : "New conversation"}
             </p>
             <p className="mt-1 text-[11px] text-paper-faint">
-              {selectedAgent} · {runtime.modelDisplayName} · {runtime.provider} · Search {runtime.searchUsed ? "used" : webSearch ? "ready" : "off"}
+              {selectedAgent} · {selectedModel === "Auto" ? runtime.modelDisplayName : selectedModel} · {selectedModel === "OpenAI ChatGPT" ? "OpenAI" : selectedModel.startsWith("Gemini") ? "Google" : selectedModel === "OpenRouter Auto" ? "OpenRouter" : ["Qwen Main", "Gemma General", "Qwen Coder", "DeepSeek Code", "Mistral Chat", "Phi Fast"].includes(selectedModel) ? "Ollama" : "Anthropic"} · Search {runtime.searchUsed ? "used" : webSearch ? "ready" : "off"}
             </p>
           </div>
 
@@ -506,7 +506,7 @@ export function ChatWindow() {
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
           <p className="eyebrow">Sources</p>
           <p className="mt-2 text-xs leading-relaxed text-paper-faint">
-            Active model: {runtime.modelDisplayName}. Provider: {runtime.provider}. Route: {runtime.routedModel}. Search status updates after each response.
+            Current model: {selectedModel === "Auto" ? runtime.modelDisplayName : selectedModel}. Last route: {runtime.routedModel}. Search status updates after each response.
           </p>
         </div>
       </aside>

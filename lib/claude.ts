@@ -1,4 +1,4 @@
-import { routeReasoning, resolveModelRoute, modelDisplayName, type ChatTurn, type ReasonOptions, type ReasonResult } from "@/lib/model-router";
+import { modelDisplayName, routeReasoning, type ChatTurn, type ReasonOptions, type ReasonResult } from "@/lib/model-router";
 
 export { modelDisplayName };
 export type { ChatTurn, ReasonOptions, ReasonResult };
@@ -8,7 +8,7 @@ export const PROVIDER = "Anthropic";
 
 /**
  * Backward-compatible detailed helper for older Cipher code.
- * New chat routing should use lib/model-router.ts directly.
+ * Main chat routing should use lib/model-router.ts directly.
  */
 export async function reasonDetailed(
   system: string,

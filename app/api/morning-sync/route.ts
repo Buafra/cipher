@@ -620,7 +620,11 @@ export async function GET() {
     "",
     `₿ <b>Crypto</b>\nBTC: ${escapeHtml(crypto.btc)}\nETH: ${escapeHtml(crypto.eth)}`,
     "",
-    `💱 <b>Exchange Rates</b>\nAED → USD: ${escapeHtml(formatNumber(fx.usd))}\nAED → EUR: ${escapeHtml(formatNumber(fx.eur))}\nAED → GBP: ${escapeHtml(formatNumber(fx.gbp))}\nAED → INR: ${escapeHtml(formatNumber(fx.inr))}`,
+`💱 <b>Exchange Rates</b>
+1 USD = ${escapeHtml((1 / Number(fx.usd)).toFixed(4))} AED
+1 EUR = ${escapeHtml((1 / Number(fx.eur)).toFixed(4))} AED
+1 GBP = ${escapeHtml((1 / Number(fx.gbp)).toFixed(4))} AED
+1 INR = ${escapeHtml((1 / Number(fx.inr)).toFixed(4))} AED`,
   ]
     .filter(Boolean)
     .join("\n");

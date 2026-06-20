@@ -12,6 +12,23 @@ type Conversation = {
 
 const VOICE_LANG = "en-US";
 
+const MODELS = [
+  "Auto",
+  "Claude Sonnet",
+  "Claude Opus",
+  "Gemini Pro",
+  "Gemini Flash",
+  "OpenRouter Auto",
+  "Qwen Main",
+  "Gemma General",
+  "Qwen Coder",
+  "DeepSeek Code",
+  "Mistral Chat",
+  "Phi Fast",
+];
+
+const AGENTS = ["Hermes", "Athena", "Sentinel", "Mosafer", "Wealth", "Atlas"];
+
 export function ChatWindow() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -19,6 +36,18 @@ export function ChatWindow() {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [remembered, setRemembered] = useState<string[]>([]);
+
+  // Phase 1A UI controls only. These do not change the /api/chat payload yet,
+  // so existing backend behavior stays safe.
+  const [selectedModel, setSelectedModel] = useState("Auto");
+  const [webSearch, setWebSearch] = useState(true);
+  const [selectedAgent, setSelectedAgent] = useState("Hermes");
+  const [runtime, setRuntime] = useState({
+    modelDisplayName: "Claude Sonnet",
+    modelUsed: "claude-sonnet-4-6",
+    provider: "Anthropic",
+    searchUsed: false,
+  });
 
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
@@ -187,7 +216,13 @@ export function ChatWindow() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, conversationId }),
+        body: JSON.stringify({
+          message,
+          conversationId,
+          selectedModel,
+          selectedAgent,
+          webSearch,
+        }),
       });
 
       const data = await res.json();
@@ -197,6 +232,12 @@ export function ChatWindow() {
       }
 
       setConversationId(data.conversationId);
+      setRuntime({
+        modelDisplayName: data.modelDisplayName ?? data.modelUsed ?? runtime.modelDisplayName,
+        modelUsed: data.modelUsed ?? runtime.modelUsed,
+        provider: data.provider ?? runtime.provider,
+        searchUsed: Boolean(data.searchUsed),
+      });
       setTurns((t) => [...t, { role: "assistant", content: data.reply }]);
       loadConversations();
 
@@ -227,8 +268,8 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="grid h-[78vh] w-full grid-cols-1 gap-5 md:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="glass rounded-3xl p-4">
+    <div className="grid h-[78vh] w-full grid-cols-1 gap-5 xl:grid-cols-[300px_minmax(0,1fr)_260px]">
+      <aside className="glass flex min-h-0 flex-col rounded-3xl p-4">
         <button
           onClick={newChat}
           className="mb-4 w-full rounded-2xl bg-brass px-3 py-3 text-sm font-medium text-white transition hover:opacity-90"
@@ -236,9 +277,34 @@ export function ChatWindow() {
           New chat
         </button>
 
-        <p className="eyebrow mb-3">Old chats</p>
+        <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+          <p className="eyebrow mb-2">Mode</p>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-paper outline-none"
+          >
+            {MODELS.map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
 
-        <div className="space-y-1 overflow-y-auto">
+          <button
+            onClick={() => setWebSearch((v) => !v)}
+            className="mt-3 flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-paper-dim transition hover:text-paper"
+          >
+            <span>Web search</span>
+            <span className={webSearch ? "text-emerald-300" : "text-paper-faint"}>
+              {webSearch ? "ON" : "OFF"}
+            </span>
+          </button>
+        </div>
+
+        <p className="eyebrow mb-3">Conversations</p>
+
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
           {conversations.length === 0 ? (
             <p className="text-xs text-paper-faint">No saved chats yet.</p>
           ) : (
@@ -288,18 +354,47 @@ export function ChatWindow() {
         </div>
       </aside>
 
-      <div className="glass flex flex-col rounded-3xl">
-        <div className="flex items-center justify-between border-b hairline px-5 py-3">
-          <span className="text-xs text-paper-faint">
-            {conversationId ? "Saved conversation" : "New conversation"}
-          </span>
+      <div className="glass flex min-h-0 flex-col rounded-3xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b hairline px-5 py-3">
+          <div>
+            <p className="text-xs text-paper-faint">
+              {conversationId ? "Saved conversation" : "New conversation"}
+            </p>
+            <p className="mt-1 text-[11px] text-paper-faint">
+              {selectedAgent} · {runtime.modelDisplayName} · {runtime.provider} · Search {runtime.searchUsed ? "used" : webSearch ? "ready" : "off"}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled
+              className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-paper-faint disabled:opacity-60"
+              title="File upload will be wired in the next sprint"
+            >
+              Upload
+            </button>
+            <button
+              type="button"
+              onClick={newChat}
+              className="rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-100 hover:bg-blue-500/15"
+            >
+              New
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           {turns.length === 0 && (
-            <p className="text-sm text-paper-faint">
-              Try: &ldquo;Remember I prefer aisle seats&rdquo; or &ldquo;What's on my plate this week?&rdquo;
-            </p>
+            <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
+              <p className="eyebrow">Cipher Chat</p>
+              <h2 className="mt-2 font-display text-2xl font-light text-paper">
+                Ask, analyze, remember, and decide.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-paper-dim">
+                Try: “Summarize today’s priorities”, “Remember I prefer aisle seats”, or “What should I focus on this week?”
+              </p>
+            </div>
           )}
 
           {turns.map((t, i) => (
@@ -383,6 +478,36 @@ export function ChatWindow() {
           </div>
         </div>
       </div>
+
+      <aside className="glass hidden min-h-0 flex-col rounded-3xl p-4 xl:flex">
+        <p className="eyebrow mb-3">Agents</p>
+        <div className="space-y-2">
+          {AGENTS.map((agent) => (
+            <button
+              key={agent}
+              onClick={() => setSelectedAgent(agent)}
+              className={
+                "w-full rounded-2xl border px-3 py-3 text-left text-xs transition " +
+                (selectedAgent === agent
+                  ? "border-blue-400/30 bg-blue-500/10 text-paper"
+                  : "border-white/10 bg-white/[0.025] text-paper-dim hover:text-paper")
+              }
+            >
+              <div className="font-medium">{agent}</div>
+              <div className="mt-1 text-[10px] text-paper-faint">
+                {agent === "Hermes" ? "General assistant" : "Routing soon"}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+          <p className="eyebrow">Sources</p>
+          <p className="mt-2 text-xs leading-relaxed text-paper-faint">
+            Active model: {runtime.modelDisplayName}. Provider: {runtime.provider}. Search status updates after each response.
+          </p>
+        </div>
+      </aside>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
+import { db } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -239,32 +240,70 @@ ${articles
 
 async function getMetals() {
   const goldApiKey = process.env.GOLD_API_KEY ?? "";
-  if (!goldApiKey) return { gold: "N/A", silver: "N/A" };
 
-  async function fetchMetal(symbol: "XAU" | "XAG") {
-    const res = await fetch(`https://www.goldapi.io/api/${symbol}/USD`, {
-      headers: {
-        "x-access-token": goldApiKey,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    });
+  async function fetchGoldApi(symbol: "XAU" | "XAG") {
+    if (!goldApiKey) return null;
 
-    if (!res.ok) return null;
-    return res.json();
+    try {
+      const res = await fetch(`https://www.goldapi.io/api/${symbol}/USD`, {
+        headers: {
+          "x-access-token": goldApiKey,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        console.error("GoldAPI failed:", symbol, res.status, await res.text());
+        return null;
+      }
+
+      const data = await res.json();
+      return data?.price ? Number(data.price) : null;
+    } catch (error) {
+      console.error("GoldAPI error:", symbol, error);
+      return null;
+    }
+  }
+
+  async function fetchYahoo(symbol: "GC=F" | "SI=F") {
+    try {
+      const encoded = encodeURIComponent(symbol);
+      const res = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}`,
+        { cache: "no-store" }
+      );
+
+      if (!res.ok) {
+        console.error("Yahoo metals failed:", symbol, res.status, await res.text());
+        return null;
+      }
+
+      const data = await res.json();
+      const price =
+        data?.chart?.result?.[0]?.meta?.regularMarketPrice ??
+        data?.chart?.result?.[0]?.meta?.previousClose;
+
+      return price ? Number(price) : null;
+    } catch (error) {
+      console.error("Yahoo metals error:", symbol, error);
+      return null;
+    }
   }
 
   try {
-    const [gold, silver] = await Promise.all([
-      fetchMetal("XAU"),
-      fetchMetal("XAG"),
-    ]);
+    let gold = await fetchGoldApi("XAU");
+    let silver = await fetchGoldApi("XAG");
+
+    if (!gold) gold = await fetchYahoo("GC=F");
+    if (!silver) silver = await fetchYahoo("SI=F");
 
     return {
-      gold: gold?.price ? `$${Number(gold.price).toFixed(2)}` : "N/A",
-      silver: silver?.price ? `$${Number(silver.price).toFixed(2)}` : "N/A",
+      gold: gold ? `$${gold.toFixed(2)}` : "N/A",
+      silver: silver ? `$${silver.toFixed(2)}` : "N/A",
     };
-  } catch {
+  } catch (error) {
+    console.error("Metals failed:", error);
     return { gold: "N/A", silver: "N/A" };
   }
 }
@@ -555,6 +594,17 @@ function buildEmailHtml({
 </html>`;
 }
 
+
+async function saveBriefing(payload: unknown) {
+  try {
+    await db.from("morning_briefings").insert({
+      source: "morning-sync",
+      payload,
+    });
+  } catch (error) {
+    console.error("Failed to save briefing", error);
+  }
+}
 export async function GET() {
   const now = new Date();
 
@@ -634,6 +684,17 @@ export async function GET() {
   const telegram = await sendTelegram(telegramMessage);
 
   const email = await sendEmail(`Cipher Morning Briefing — ${date}`, html);
+
+await saveBriefing({
+  date,
+  weather,
+  executiveInsight,
+  weeklyBrief,
+  news,
+  metals,
+  crypto,
+  fx,
+});
 
   return NextResponse.json({
     ok: true,

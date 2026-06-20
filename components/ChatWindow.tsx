@@ -16,6 +16,7 @@ const MODELS = [
   "Auto",
   "Claude Sonnet",
   "Claude Opus",
+  "OpenAI ChatGPT",
   "Gemini Pro",
   "Gemini Flash",
   "OpenRouter Auto",
@@ -37,8 +38,7 @@ export function ChatWindow() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [remembered, setRemembered] = useState<string[]>([]);
 
-  // Phase 1A UI controls only. These do not change the /api/chat payload yet,
-  // so existing backend behavior stays safe.
+  // Phase 1A model controls. These are sent to /api/chat and routed server-side.
   const [selectedModel, setSelectedModel] = useState("Auto");
   const [webSearch, setWebSearch] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState("Hermes");
@@ -46,6 +46,7 @@ export function ChatWindow() {
     modelDisplayName: "Claude Sonnet",
     modelUsed: "claude-sonnet-4-6",
     provider: "Anthropic",
+    routedModel: "Auto → Claude Sonnet via Anthropic",
     searchUsed: false,
   });
 
@@ -236,6 +237,7 @@ export function ChatWindow() {
         modelDisplayName: data.modelDisplayName ?? data.modelUsed ?? runtime.modelDisplayName,
         modelUsed: data.modelUsed ?? runtime.modelUsed,
         provider: data.provider ?? runtime.provider,
+        routedModel: data.routedModel ?? runtime.routedModel,
         searchUsed: Boolean(data.searchUsed),
       });
       setTurns((t) => [...t, { role: "assistant", content: data.reply }]);
@@ -504,7 +506,7 @@ export function ChatWindow() {
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
           <p className="eyebrow">Sources</p>
           <p className="mt-2 text-xs leading-relaxed text-paper-faint">
-            Active model: {runtime.modelDisplayName}. Provider: {runtime.provider}. Search status updates after each response.
+            Active model: {runtime.modelDisplayName}. Provider: {runtime.provider}. Route: {runtime.routedModel}. Search status updates after each response.
           </p>
         </div>
       </aside>

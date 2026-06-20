@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, USER_ID } from "@/lib/supabase";
 import { loadMemory, loadProfile } from "@/lib/memory";
 import { buildSystemPrompt } from "@/lib/prompt";
-import { MODEL, PROVIDER, modelDisplayName, reasonDetailed, type ChatTurn } from "@/lib/claude";
+import { resolveModelRoute, routeReasoning, type ChatTurn } from "@/lib/model-router";
 import { searchWeb } from "@/lib/search";
 
 export const runtime = "nodejs";
@@ -13,7 +13,6 @@ function parseTaskFromMessage(message: string) {
 
   let text = match[1].trim();
   let dueAt: string | null = null;
-
   const now = new Date();
 
   function setDate(daysToAdd: number) {
@@ -44,19 +43,12 @@ function parseTaskFromMessage(message: string) {
 
     d.setHours(hour, minute, 0, 0);
     dueAt = d.toISOString();
-
     text = text.replace(timeMatch[0], "").trim();
   }
 
-  text = text
-    .replace(/\bat\b$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  text = text.replace(/\bat\b$/i, "").replace(/\s+/g, " ").trim();
 
-  return {
-    title: text,
-    due_at: dueAt,
-  };
+  return { title: text, due_at: dueAt };
 }
 
 function needsLiveWeb(message: string) {
@@ -66,18 +58,23 @@ function needsLiveWeb(message: string) {
 }
 
 /**
- * POST /api/chat   (Layer 1 → Layer 3, via this relay)
- * Body: { message: string, conversationId?: string }
+ * POST /api/chat
+ * Body: { message: string, conversationId?: string, webSearch?: boolean, selectedModel?: string, selectedAgent?: string }
  */
 export async function POST(req: NextRequest) {
   try {
-    const { message, conversationId, webSearch = true, selectedModel = "Auto", selectedAgent = "Hermes" } = await req.json();
+    const {
+      message,
+      conversationId,
+      webSearch = true,
+      selectedModel = "Auto",
+      selectedAgent = "Hermes",
+    } = await req.json();
 
     if (!message || typeof message !== "string") {
       return NextResponse.json({ error: "message is required" }, { status: 400 });
     }
 
-    // Ensure a conversation exists.
     let convId = conversationId as string | undefined;
     if (!convId) {
       const { data, error } = await db
@@ -90,7 +87,6 @@ export async function POST(req: NextRequest) {
       convId = data.id;
     }
 
-    // Save the incoming user message.
     await db.from("messages").insert({
       conversation_id: convId,
       role: "user",
@@ -98,7 +94,6 @@ export async function POST(req: NextRequest) {
     });
 
     const parsedTask = parseTaskFromMessage(message);
-
     if (parsedTask) {
       const { data, error } = await db
         .from("tasks")
@@ -139,11 +134,13 @@ export async function POST(req: NextRequest) {
         modelUsed: "System Task Parser",
         modelDisplayName: "System Task Parser",
         provider: "Cipher",
+        routedModel: "System Task Parser",
+        selectedModel,
+        selectedAgent,
         searchUsed: false,
       });
     }
 
-    // Gather stored context.
     const [profile, facts] = await Promise.all([loadProfile(), loadMemory()]);
 
     const { data: history } = await db
@@ -153,41 +150,37 @@ export async function POST(req: NextRequest) {
       .order("created_at", { ascending: true })
       .limit(20);
 
+    const route = resolveModelRoute(selectedModel);
     const useWeb = Boolean(webSearch) && needsLiveWeb(message);
 
-    // Keep Tavily because it is already working in your project.
-    // Also enable Claude server-side web search only for live/current questions.
     const webResults = useWeb
       ? await searchWeb(message)
-      : "No live web search needed for this message.";
+      : "No live web search needed for this message, or web search is turned off in the UI.";
 
     const system = `${buildSystemPrompt(profile, facts)}
 
 CIPHER RUNTIME STATUS:
-- Active provider: ${PROVIDER}
-- Active model id: ${MODEL}
-- Active model name: ${modelDisplayName(MODEL)}
+- Active provider: ${route.provider}
+- Active model id: ${route.modelId}
+- Active model name: ${route.modelDisplayName}
 - User-selected UI model: ${selectedModel}
+- Actual router path: ${route.routedModel}
 - User-selected UI agent: ${selectedAgent}
 - Web search enabled for this request: ${useWeb ? "yes" : "no"}
 
 IDENTITY RULE:
-If the user asks what model, provider, agent, or search mode you are using, answer from the CIPHER RUNTIME STATUS above.
+If the user asks what model, provider, agent, route, or search mode you are using, answer from the CIPHER RUNTIME STATUS above.
 Do not say you do not have access to that information.
-If the UI-selected model is Auto, explain that Auto is currently routed to ${modelDisplayName(MODEL)} via ${PROVIDER}.
+If the UI-selected model is Auto, explain the actual router path shown above.
 
 LIVE WEB RESULTS FROM TAVILY:
 ${webResults}
 
 RULES:
 For current, live, recent, price, market, weather, news, travel, stock, crypto, regulation, product, or dated questions, use the Tavily results above first.
-
 Use ONLY the live web results above for current facts.
-
 If the Tavily results are stale, conflicting, missing timestamps, or not enough, say so clearly.
-
 Do not invent prices, dates, headlines, sports results, flight times, or sources.
-
 Always include source URLs when using live web results.
 `;
 
@@ -196,12 +189,12 @@ Always include source URLs when using live web results.
       content: m.content,
     }));
 
-    const result = await reasonDetailed(system, turns, 1024, {
+    const result = await routeReasoning(system, turns, 1024, {
+      selectedModel,
       webSearch: useWeb,
       maxSearches: 3,
     });
 
-    // Persist the assistant reply.
     await db.from("messages").insert({
       conversation_id: convId,
       role: "assistant",
@@ -214,9 +207,10 @@ Always include source URLs when using live web results.
       modelUsed: result.modelUsed,
       modelDisplayName: result.modelDisplayName,
       provider: result.provider,
-      searchUsed: useWeb,
-      selectedModel,
+      routedModel: result.routedModel,
+      selectedModel: result.selectedModel,
       selectedAgent,
+      searchUsed: useWeb,
     });
   } catch (err: any) {
     console.error("[/api/chat]", err);

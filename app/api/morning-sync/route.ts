@@ -4,6 +4,57 @@ import { Resend } from "resend";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatNumber(value: unknown, decimals = 4) {
+  if (typeof value === "number") return value.toFixed(decimals);
+  return String(value ?? "N/A");
+}
+
+function cleanNewsItem(text: string) {
+  return text
+    .replace(/^[-–—\s]+/gm, "")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^(\d+\.\s*)/gm, "")
+    .replace(/Cipher Intelligence Brief/gi, "")
+    .replace(/Prepared for Faisal Buafra/gi, "")
+    .replace(/Executive Intelligence/gi, "")
+    .replace(/Confidential/gi, "")
+    .replace(/-{3,}/g, "")
+    .trim();
+}
+
+function parseNewsItem(item: string) {
+  const lines = item
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  const headline =
+    lines.find(
+      (x) =>
+        !x.toLowerCase().startsWith("why it matters:") &&
+        !x.toLowerCase().startsWith("cipher impact:")
+    ) ?? "AI news update";
+
+  const why =
+    lines.find((x) => x.toLowerCase().startsWith("why it matters:")) ??
+    "Why it matters: Relevant to AI strategy and enterprise technology.";
+
+  const impact =
+    lines.find((x) => x.toLowerCase().startsWith("cipher impact:")) ??
+    "Cipher impact: Monitor for model routing, local AI, or automation improvements.";
+
+  return { headline, why, impact };
+}
+
 async function sendTelegram(message: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -17,8 +68,8 @@ async function sendTelegram(message: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: message,
-      parse_mode: "Markdown",
+      text: message.slice(0, 3900),
+      parse_mode: "HTML",
       disable_web_page_preview: true,
     }),
   });
@@ -55,8 +106,8 @@ async function getDubaiWeather() {
     );
 
     if (!res.ok) return "Unavailable";
-    const data = await res.json();
 
+    const data = await res.json();
     return `${data.current.temp_c}°C, ${data.current.condition.text} — feels like ${data.current.feelslike_c}°C`;
   } catch {
     return "Unavailable";
@@ -64,37 +115,128 @@ async function getDubaiWeather() {
 }
 
 async function getAiTechNews() {
-  const key = process.env.TAVILY_API_KEY;
-  if (!key) return ["AI news unavailable"];
+  const tavilyKey = process.env.TAVILY_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+  if (!tavilyKey) return ["AI news unavailable"];
 
   try {
-    const res = await fetch("https://api.tavily.com/search", {
+    const searchRes = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        api_key: key,
+        api_key: tavilyKey,
         query:
-          "latest AI and technology news today OpenAI Anthropic Google Microsoft Apple NVIDIA",
+          "latest important AI and technology news today OpenAI Anthropic Google Microsoft Apple NVIDIA enterprise AI chips agents regulation",
         topic: "news",
         search_depth: "basic",
-        max_results: 4,
+        max_results: 6,
         include_answer: false,
       }),
+      cache: "no-store",
     });
 
-    if (!res.ok) return ["AI news unavailable"];
-    const data = await res.json();
+    if (!searchRes.ok) return ["AI news unavailable"];
 
-    return (data.results ?? [])
+    const searchData = await searchRes.json();
+
+    const articles = (searchData.results ?? [])
       .slice(0, 4)
-      .map((item: { title?: string }) => item.title || "Untitled");
+      .map((item: { title?: string; url?: string; content?: string }) => ({
+        title: item.title || "Untitled",
+        url: item.url || "",
+        content: item.content || "",
+      }));
+
+    if (!articles.length) return ["No fresh AI news found"];
+
+    if (!anthropicKey) {
+      return articles.map((a: { title: string }) => a.title).slice(0, 4);
+    }
+
+    const prompt = `
+You are Cipher, Faisal Buafra's private executive intelligence analyst.
+
+Summarize the AI and technology news below for Faisal.
+
+Faisal cares about:
+- AI strategy
+- Cipher development
+- model routing
+- local AI
+- enterprise AI
+- utilities, DEWA, strategy, risk, resilience
+- executive-level impact
+
+Rules:
+Return ONLY the news items.
+Do not add a title.
+Do not add a date.
+Do not add intro.
+Do not add footer.
+Do not say "Cipher Intelligence Brief".
+Do not mention confidential.
+Do not include article URLs.
+Do not use hype.
+Do not use generic filler.
+Keep it concise, executive, and practical.
+
+For each item, use exactly this format:
+
+First line: headline only, maximum 12 words. Do not write "Headline:".
+Second line: Why it matters: maximum 18 words.
+Third line: Cipher impact: maximum 18 words.
+
+Separate each item using this exact separator:
+---ITEM---
+
+Articles:
+${articles
+  .map(
+    (a: { title: string; url: string; content: string }, i: number) =>
+      `${i + 1}. ${a.title}\n${a.content}\n${a.url}`
+  )
+  .join("\n\n")}
+`;
+
+    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: process.env.CIPHER_MODEL ?? "claude-sonnet-4-6",
+        max_tokens: 800,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      cache: "no-store",
+    });
+
+    if (!claudeRes.ok) {
+      return articles.map((a: { title: string }) => a.title).slice(0, 4);
+    }
+
+    const claudeData = await claudeRes.json();
+    const text = claudeData.content?.[0]?.text;
+
+    if (!text) return articles.map((a: { title: string }) => a.title).slice(0, 4);
+
+    const items = text
+      .split("---ITEM---")
+      .map(cleanNewsItem)
+      .filter(Boolean)
+      .slice(0, 4);
+
+    return items.length ? items : articles.map((a: { title: string }) => a.title).slice(0, 4);
   } catch {
     return ["AI news unavailable"];
   }
 }
 
 async function getMetals() {
-  const goldApiKey: string = process.env.GOLD_API_KEY ?? "";
+  const goldApiKey = process.env.GOLD_API_KEY ?? "";
   if (!goldApiKey) return { gold: "N/A", silver: "N/A" };
 
   async function fetchMetal(symbol: "XAU" | "XAG") {
@@ -190,23 +332,26 @@ function buildEmailHtml({
     inr: string | number;
   };
 }) {
-  const shortNews = news.slice(0, 3);
+  const newsHtml = news
+    .slice(0, 4)
+    .map((item) => {
+      const parsed = parseNewsItem(item);
 
-  const newsHtml = shortNews
-    .map(
-      (title, index) => `
-        <div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.10);">
-          <div style="font-size:16px;font-weight:bold;color:#fff;">
-            ${index + 1}. ${title}
+      return `
+        <div style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,.10);">
+          <div style="font-size:17px;font-weight:700;color:#fff;line-height:1.35;">
+            ${escapeHtml(parsed.headline)}
           </div>
-          <div style="margin-top:5px;font-size:13px;line-height:1.45;color:#c7cbd3;">
-            <b>Why it matters:</b> Relevant to AI platforms, chips, cloud, or automation.
+          <div style="margin-top:7px;font-size:14px;line-height:1.5;color:#c7cbd3;">
+            <b style="color:#d6b56d;">Why it matters:</b>
+            ${escapeHtml(parsed.why.replace(/^Why it matters:\s*/i, ""))}
           </div>
-          <div style="margin-top:3px;font-size:13px;line-height:1.45;color:#c7cbd3;">
-            <b>Cipher impact:</b> Monitor for model routing or Morning Sync improvements.
+          <div style="margin-top:5px;font-size:14px;line-height:1.5;color:#c7cbd3;">
+            <b style="color:#d6b56d;">Cipher impact:</b>
+            ${escapeHtml(parsed.impact.replace(/^Cipher impact:\s*/i, ""))}
           </div>
-        </div>`
-    )
+        </div>`;
+    })
     .join("");
 
   return `<!DOCTYPE html>
@@ -226,7 +371,7 @@ function buildEmailHtml({
                     <div style="font-size:15px;color:#cbd5e1;margin-top:8px;">Private intelligence for Faisal Buafra</div>
                   </td>
                   <td align="right" style="font-size:15px;line-height:1.6;color:#cbd5e1;">
-                    ${date}<br/>
+                    ${escapeHtml(date)}<br/>
                     07:00 UAE
                   </td>
                 </tr>
@@ -239,37 +384,37 @@ function buildEmailHtml({
               <div style="background:#242426;border:1px solid rgba(214,181,109,.30);border-radius:22px;padding:20px;">
                 <div style="letter-spacing:5px;color:#d6b56d;font-size:13px;font-weight:bold;">CIPHER VERDICT</div>
                 <p style="font-size:16px;line-height:1.55;color:#fff;margin:14px 0 7px;"><b>Key Insight:</b> Morning Sync is active across weather, AI news, metals, crypto, and FX.</p>
-                <p style="font-size:16px;line-height:1.55;color:#fff;margin:7px 0;"><b>One Action:</b> Confirm today’s delivery, then add markets and DEWA stock next.</p>
-                <p style="font-size:16px;line-height:1.55;color:#fff;margin:7px 0 0;"><b>One Risk:</b> Expanding too fast before the daily workflow is stable.</p>
+                <p style="font-size:16px;line-height:1.55;color:#fff;margin:7px 0;"><b>One Action:</b> Keep the workflow stable, then add markets and DEWA stock carefully.</p>
+                <p style="font-size:16px;line-height:1.55;color:#fff;margin:7px 0 0;"><b>One Risk:</b> Too many new data sources before reliability is fully proven.</p>
               </div>
 
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;">
                 <tr>
                   <td width="25%" style="padding:6px;">
-                    <div style="background:#171d28;border-radius:16px;padding:14px;height:78px;">
+                    <div style="background:#171d28;border-radius:16px;padding:14px;height:88px;">
                       <div style="color:#cbd5e1;font-size:12px;">Dubai Weather</div>
-                      <div style="font-size:19px;color:#fff;margin-top:6px;">${weather}</div>
+                      <div style="font-size:17px;color:#fff;margin-top:6px;line-height:1.35;">${escapeHtml(weather)}</div>
                     </div>
                   </td>
                   <td width="25%" style="padding:6px;">
-                    <div style="background:#171d28;border-radius:16px;padding:14px;height:78px;">
+                    <div style="background:#171d28;border-radius:16px;padding:14px;height:88px;">
                       <div style="color:#cbd5e1;font-size:12px;">Gold</div>
-                      <div style="font-size:23px;color:#fff;margin-top:6px;">${metals.gold}</div>
+                      <div style="font-size:23px;color:#fff;margin-top:6px;">${escapeHtml(metals.gold)}</div>
                       <div style="color:#cbd5e1;font-size:12px;">per oz</div>
                     </div>
                   </td>
                   <td width="25%" style="padding:6px;">
-                    <div style="background:#171d28;border-radius:16px;padding:14px;height:78px;">
+                    <div style="background:#171d28;border-radius:16px;padding:14px;height:88px;">
                       <div style="color:#cbd5e1;font-size:12px;">Silver</div>
-                      <div style="font-size:23px;color:#fff;margin-top:6px;">${metals.silver}</div>
+                      <div style="font-size:23px;color:#fff;margin-top:6px;">${escapeHtml(metals.silver)}</div>
                       <div style="color:#cbd5e1;font-size:12px;">per oz</div>
                     </div>
                   </td>
                   <td width="25%" style="padding:6px;">
-                    <div style="background:#171d28;border-radius:16px;padding:14px;height:78px;">
+                    <div style="background:#171d28;border-radius:16px;padding:14px;height:88px;">
                       <div style="color:#cbd5e1;font-size:12px;">BTC / ETH</div>
-                      <div style="font-size:17px;color:#fff;margin-top:6px;">${crypto.btc}</div>
-                      <div style="color:#cbd5e1;font-size:12px;">ETH: ${crypto.eth}</div>
+                      <div style="font-size:15px;color:#fff;margin-top:6px;line-height:1.35;">BTC: ${escapeHtml(crypto.btc)}</div>
+                      <div style="color:#cbd5e1;font-size:12px;">ETH: ${escapeHtml(crypto.eth)}</div>
                     </div>
                   </td>
                 </tr>
@@ -286,10 +431,10 @@ function buildEmailHtml({
                     <div style="background:#171d28;border-radius:20px;padding:18px;">
                       <div style="letter-spacing:5px;color:#d6b56d;font-size:13px;font-weight:bold;">FX SNAPSHOT</div>
                       <div style="font-size:16px;line-height:1.7;color:#d7deea;margin-top:12px;">
-                        AED → USD: ${fx.usd}<br/>
-                        AED → EUR: ${fx.eur}<br/>
-                        AED → GBP: ${fx.gbp}<br/>
-                        AED → INR: ${fx.inr}
+                        AED → USD: ${escapeHtml(formatNumber(fx.usd))}<br/>
+                        AED → EUR: ${escapeHtml(formatNumber(fx.eur))}<br/>
+                        AED → GBP: ${escapeHtml(formatNumber(fx.gbp))}<br/>
+                        AED → INR: ${escapeHtml(formatNumber(fx.inr))}
                       </div>
                     </div>
                   </td>
@@ -297,9 +442,9 @@ function buildEmailHtml({
                     <div style="background:#171d28;border-radius:20px;padding:18px;">
                       <div style="letter-spacing:5px;color:#d6b56d;font-size:13px;font-weight:bold;">FAISAL FOCUS</div>
                       <div style="font-size:16px;line-height:1.7;color:#d7deea;margin-top:12px;">
-                        1. Confirm 7 AM automation<br/>
-                        2. Add markets + DEWA stock<br/>
-                        3. Keep Cipher stable
+                        1. Confirm daily delivery<br/>
+                        2. Keep news executive-level<br/>
+                        3. Add new sources carefully
                       </div>
                     </div>
                   </td>
@@ -318,6 +463,7 @@ function buildEmailHtml({
 </body>
 </html>`;
 }
+
 export async function GET() {
   const now = new Date();
 
@@ -337,20 +483,36 @@ export async function GET() {
     getExchangeRates(),
   ]);
 
+  const telegramNews = news
+    .slice(0, 4)
+.map((item: string, index: number) => {      const parsed = parseNewsItem(item);
+
+      return [
+        `<b>${index + 1}. ${escapeHtml(parsed.headline)}</b>`,
+        `<b>Why it matters:</b> ${escapeHtml(
+          parsed.why.replace(/^Why it matters:\s*/i, "")
+        )}`,
+        `<b>Cipher impact:</b> ${escapeHtml(
+          parsed.impact.replace(/^Cipher impact:\s*/i, "")
+        )}`,
+      ].join("\n");
+    })
+    .join("\n\n");
+
   const telegramMessage = [
-    "🌅 *Cipher Morning Sync*",
+    "🌅 <b>Cipher Morning Sync</b>",
     "",
-    `Date: ${date}`,
+    `Date: ${escapeHtml(date)}`,
     "",
-    `🌤️ *Dubai Weather*\n${weather}`,
+    `🌤️ <b>Dubai Weather</b>\n${escapeHtml(weather)}`,
     "",
-    `🤖 *AI + Tech News*\n${news.map((n: string, i: number) => `${i + 1}. ${n}`).join("\n")}`,
+    `🤖 <b>AI + Tech News</b>\n${telegramNews}`,
     "",
-    `🥇 *Gold / Silver*\nGold: ${metals.gold}\nSilver: ${metals.silver}`,
+    `🥇 <b>Gold / Silver</b>\nGold: ${escapeHtml(metals.gold)}\nSilver: ${escapeHtml(metals.silver)}`,
     "",
-    `₿ *Crypto*\nBTC: ${crypto.btc}\nETH: ${crypto.eth}`,
+    `₿ <b>Crypto</b>\nBTC: ${escapeHtml(crypto.btc)}\nETH: ${escapeHtml(crypto.eth)}`,
     "",
-    `💱 *Exchange Rates*\nAED → USD: ${fx.usd}\nAED → EUR: ${fx.eur}\nAED → GBP: ${fx.gbp}\nAED → INR: ${fx.inr}`,
+    `💱 <b>Exchange Rates</b>\nAED → USD: ${escapeHtml(formatNumber(fx.usd))}\nAED → EUR: ${escapeHtml(formatNumber(fx.eur))}\nAED → GBP: ${escapeHtml(formatNumber(fx.gbp))}\nAED → INR: ${escapeHtml(formatNumber(fx.inr))}`,
   ].join("\n");
 
   const html = buildEmailHtml({ date, weather, news, metals, crypto, fx });
@@ -365,6 +527,5 @@ export async function GET() {
     sent: true,
     telegram,
     email,
-
   });
 }

@@ -41,7 +41,7 @@ function parseNewsItem(item: string) {
     lines.find(
       (x) =>
         !x.toLowerCase().startsWith("why it matters:") &&
-        !x.toLowerCase().startsWith("cipher impact:")
+        !x.toLowerCase().startsWith("cipher impact:"),
     ) ?? "AI news update";
 
   const why =
@@ -77,7 +77,6 @@ async function sendTelegram(message: string) {
   if (!res.ok) throw new Error("Telegram send failed");
   return res.json();
 }
-
 async function sendEmail(subject: string, html: string) {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.MORNING_EMAIL_TO;
@@ -102,7 +101,7 @@ async function getDubaiWeather() {
   try {
     const res = await fetch(
       `https://api.weatherapi.com/v1/current.json?key=${key}&q=Dubai&aqi=no`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
 
     if (!res.ok) return "Unavailable";
@@ -194,7 +193,7 @@ Articles:
 ${articles
   .map(
     (a: { title: string; url: string; content: string }, i: number) =>
-      `${i + 1}. ${a.title}\n${a.content}\n${a.url}`
+      `${i + 1}. ${a.title}\n${a.content}\n${a.url}`,
   )
   .join("\n\n")}
 `;
@@ -221,7 +220,8 @@ ${articles
     const claudeData = await claudeRes.json();
     const text = claudeData.content?.[0]?.text;
 
-    if (!text) return articles.map((a: { title: string }) => a.title).slice(0, 4);
+    if (!text)
+      return articles.map((a: { title: string }) => a.title).slice(0, 4);
 
     const items = text
       .split("---ITEM---")
@@ -229,7 +229,9 @@ ${articles
       .filter(Boolean)
       .slice(0, 4);
 
-    return items.length ? items : articles.map((a: { title: string }) => a.title).slice(0, 4);
+    return items.length
+      ? items
+      : articles.map((a: { title: string }) => a.title).slice(0, 4);
   } catch {
     return ["AI news unavailable"];
   }
@@ -271,7 +273,7 @@ async function getCrypto() {
   try {
     const res = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true",
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
 
     if (!res.ok) return { btc: "N/A", eth: "N/A" };
@@ -294,7 +296,7 @@ async function getExchangeRates() {
   try {
     const res = await fetch(
       `https://v6.exchangerate-api.com/v6/${key}/latest/AED`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
 
     if (!res.ok) return { usd: "N/A", eur: "N/A", gbp: "N/A", inr: "N/A" };
@@ -365,10 +367,7 @@ ${news.join("\n\n")}
   const result = await askClaude(prompt, 300);
 
   return (
-    result
-      ?.replaceAll("**", "")
-      .replaceAll("*", "")
-      .trim() ||
+    result?.replaceAll("**", "").replaceAll("*", "").trim() ||
     `Executive Insight:
 AI and technology shifts should be monitored for strategic, operational, and resilience impact.
 
@@ -399,57 +398,6 @@ No hype. No generic filler.
 
 News:
 ${news.join("\n\n")}
-`;
-
-  return await askClaude(prompt, 500);
-}
-
-async function getImageSummaryPrompt({
-  date,
-  weather,
-  news,
-  metals,
-  crypto,
-  fx,
-  executiveInsight,
-}: {
-  date: string;
-  weather: string;
-  news: string[];
-  metals: { gold: string; silver: string };
-  crypto: { btc: string; eth: string };
-  fx: { usd: string | number; eur: string | number; gbp: string | number; inr: string | number };
-  executiveInsight: string;
-}) {
-  const prompt = `
-Create one image-generation prompt only.
-
-Image concept:
-A premium executive intelligence dashboard card for Telegram.
-
-Style:
-Black and gold, luxury, clean, minimal, Bloomberg-style, futuristic but professional.
-
-Include these sections visually:
-- Cipher Morning Sync
-- ${date}
-- Dubai weather: ${weather}
-- AI + Tech Intelligence
-- Gold: ${metals.gold}
-- Silver: ${metals.silver}
-- BTC: ${crypto.btc}
-- ETH: ${crypto.eth}
-- AED FX: USD ${fx.usd}, EUR ${fx.eur}, GBP ${fx.gbp}, INR ${fx.inr}
-- Executive insight summary
-
-Use no small unreadable text.
-Make it premium, executive, and suitable for Faisal Buafra.
-
-Executive insight:
-${executiveInsight}
-
-News:
-${news.slice(0, 2).join("\n\n")}
 `;
 
   return await askClaude(prompt, 500);
@@ -618,78 +566,70 @@ export async function GET() {
     day: "numeric",
   });
 
- const [weather, news, metals, crypto, fx] = await Promise.all([
-  getDubaiWeather(),
-  getAiTechNews(),
-  getMetals(),
-  getCrypto(),
-  getExchangeRates(),
-]);
+  const [weather, news, metals, crypto, fx] = await Promise.all([
+    getDubaiWeather(),
+    getAiTechNews(),
+    getMetals(),
+    getCrypto(),
+    getExchangeRates(),
+  ]);
 
-const executiveInsight = await getExecutiveInsight(news);
+  const executiveInsight = await getExecutiveInsight(news);
 
-const isSunday =
-  now.toLocaleDateString("en-US", {
-    weekday: "long",
-    timeZone: "Asia/Dubai",
-  }) === "Sunday";
+  const isSunday =
+    now.toLocaleDateString("en-US", {
+      weekday: "long",
+      timeZone: "Asia/Dubai",
+    }) === "Sunday";
 
-const weeklyBrief = isSunday ? await getWeeklyStrategyBrief(news) : "";
-
-//const imageSummaryPrompt = await getImageSummaryPrompt({
- // date,
- // weather,
- // news,
- // metals,
- // crypto,
-//  fx,
-//  executiveInsight,
-//});
+  const weeklyBrief = isSunday ? await getWeeklyStrategyBrief(news) : "";
 
   const telegramNews = news
     .slice(0, 4)
-.map((item: string, index: number) => {      const parsed = parseNewsItem(item);
+    .map((item: string, index: number) => {
+      const parsed = parseNewsItem(item);
 
       return [
         `<b>${index + 1}. ${escapeHtml(parsed.headline)}</b>`,
         `<b>Why it matters:</b> ${escapeHtml(
-          parsed.why.replace(/^Why it matters:\s*/i, "")
+          parsed.why.replace(/^Why it matters:\s*/i, ""),
         )}`,
         `<b>Cipher impact:</b> ${escapeHtml(
-          parsed.impact.replace(/^Cipher impact:\s*/i, "")
+          parsed.impact.replace(/^Cipher impact:\s*/i, ""),
         )}`,
       ].join("\n");
     })
     .join("\n\n");
 
   const telegramMessage = [
-  "🌅 <b>Cipher Morning Sync</b>",
-  "",
-  `Date: ${escapeHtml(date)}`,
-  "",
-  `🌤️ <b>Dubai Weather</b>\n${escapeHtml(weather)}`,
-  "",
-  `🧠 <b>Executive Insight</b>\n${escapeHtml(executiveInsight)}`,
-  "",
-  weeklyBrief
-    ? `📌 <b>Weekly Strategy Brief</b>\n${escapeHtml(weeklyBrief)}`
-    : "",
-  "",
-  `🤖 <b>AI + Tech News</b>\n${telegramNews}`,
-  "",
-  `🥇 <b>Gold / Silver</b>\nGold: ${escapeHtml(metals.gold)}\nSilver: ${escapeHtml(metals.silver)}`,
-  "",
-  `₿ <b>Crypto</b>\nBTC: ${escapeHtml(crypto.btc)}\nETH: ${escapeHtml(crypto.eth)}`,
-  "",
-  `💱 <b>Exchange Rates</b>\nAED → USD: ${escapeHtml(formatNumber(fx.usd))}\nAED → EUR: ${escapeHtml(formatNumber(fx.eur))}\nAED → GBP: ${escapeHtml(formatNumber(fx.gbp))}\nAED → INR: ${escapeHtml(formatNumber(fx.inr))}`,
-].filter(Boolean).join("\n");
+    "🌅 <b>Cipher Morning Sync</b>",
+    "",
+    `Date: ${escapeHtml(date)}`,
+    "",
+    `🌤️ <b>Dubai Weather</b>\n${escapeHtml(weather)}`,
+    "",
+    `🧠 <b>Executive Insight</b>\n${escapeHtml(executiveInsight)}`,
+    "",
+    weeklyBrief
+      ? `📌 <b>Weekly Strategy Brief</b>\n${escapeHtml(weeklyBrief)}`
+      : "",
+    "",
+    `🤖 <b>AI + Tech News</b>\n${telegramNews}`,
+    "",
+    `🥇 <b>Gold / Silver</b>\nGold: ${escapeHtml(metals.gold)}\nSilver: ${escapeHtml(metals.silver)}`,
+    "",
+    `₿ <b>Crypto</b>\nBTC: ${escapeHtml(crypto.btc)}\nETH: ${escapeHtml(crypto.eth)}`,
+    "",
+    `💱 <b>Exchange Rates</b>\nAED → USD: ${escapeHtml(formatNumber(fx.usd))}\nAED → EUR: ${escapeHtml(formatNumber(fx.eur))}\nAED → GBP: ${escapeHtml(formatNumber(fx.gbp))}\nAED → INR: ${escapeHtml(formatNumber(fx.inr))}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const html = buildEmailHtml({ date, weather, news, metals, crypto, fx });
 
-  const [telegram, email] = await Promise.all([
-    sendTelegram(telegramMessage),
-    sendEmail(`Cipher Morning Briefing — ${date}`, html),
-  ]);
+  const telegram = await sendTelegram(telegramMessage);
+
+  const email = await sendEmail(`Cipher Morning Briefing — ${date}`, html);
 
   return NextResponse.json({
     ok: true,

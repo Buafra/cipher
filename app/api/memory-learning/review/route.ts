@@ -1,50 +1,74 @@
 import { NextResponse } from "next/server";
-import { reviewApprovalItem } from "@/lib/memory-learning/approvalQueue";
+import { db } from "@/lib/supabase";
 import { saveApprovedMemory } from "@/lib/memory-learning/writer";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (!body.id || !body.status) {
+    const id = String(body.id ?? "");
+    const status = String(body.status ?? "");
+
+    if (!id || !status) {
+      return NextResponse.json({ ok: false, error: "Missing id or status" }, { status: 400 });
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      return NextResponse.json({ ok: false, error: "Status must be approved or rejected" }, { status: 400 });
+    }
+
+    const reviewedAt = new Date().toISOString();
+
+    const { data: row, error } = await db
+      .from("memory_approval_queue")
+      .update({
+        status,
+        reviewed_at: reviewedAt,
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (error || !row) {
       return NextResponse.json(
-        { ok: false, error: "Missing id or status" },
-        { status: 400 }
+        { ok: false, error: error?.message ?? "Approval item not found" },
+        { status: 500 }
       );
     }
 
-    if (body.status !== "approved" && body.status !== "rejected") {
-      return NextResponse.json(
-        { ok: false, error: "Status must be approved or rejected" },
-        { status: 400 }
-      );
-    }
-
- const item = await reviewApprovalItem({
-  id: body.id,
-  status: body.status,
-});
-
-    if (!item) {
-      return NextResponse.json(
-        { ok: false, error: "Approval item not found" },
-        { status: 404 }
-      );
-    }
+    const item = {
+      id: row.id,
+      status: row.status,
+      change: {
+        changeType: row.change_type,
+        fact: {
+          type: row.fact_type,
+          title: row.fact_title,
+          value: row.fact_value,
+          source: row.fact_source,
+          confidence: Number(row.confidence ?? 0.6),
+        },
+        existingMemory: row.existing_memory ?? undefined,
+        recommendation: row.recommendation,
+      },
+      createdAt: row.created_at,
+      reviewedAt: row.reviewed_at,
+    };
 
     const savedMemory =
-  body.status === "approved"
-    ? await saveApprovedMemory(item)
-    : null;
+      status === "approved" ? await saveApprovedMemory(item as any) : null;
 
     return NextResponse.json({
       ok: true,
       item,
       savedMemory,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { ok: false, error: "Failed to review approval item" },
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to review approval item",
+      },
       { status: 500 }
     );
   }

@@ -1,5 +1,5 @@
-import type { ExtractedMemoryFact, MemoryApprovalItem } from "./types";
 import { db } from "@/lib/supabase";
+import type { ExtractedMemoryFact, MemoryApprovalItem } from "./types";
 
 export type SavedMemory = {
   id: string;
@@ -14,7 +14,9 @@ export type SavedMemory = {
 
 const savedMemories: SavedMemory[] = [];
 
-export async function saveApprovedMemory(item: MemoryApprovalItem): Promise<SavedMemory | null> {
+export async function saveApprovedMemory(
+  item: MemoryApprovalItem
+): Promise<SavedMemory | null> {
   if (item.status !== "approved") return null;
 
   const fact = item.change.fact;
@@ -30,25 +32,38 @@ export async function saveApprovedMemory(item: MemoryApprovalItem): Promise<Save
     approvalId: item.id,
   };
 
-  savedMemories.push(memory);
-
-  const { error } = await db
+  const { data: existingMemory, error: existingError } = await db
     .from("cipher_memories")
-    .insert({
-      id: memory.id,
-      type: memory.type,
-      title: memory.title,
-      value: memory.value,
-      source: memory.source,
-      confidence: memory.confidence,
-      approval_id: memory.approvalId,
-      created_at: memory.createdAt,
-    });
+    .select("id")
+    .eq("value", memory.value)
+    .maybeSingle();
 
- if (error) {
-  console.error("Failed to save memory:", error);
-  throw new Error(`Failed to save memory to Supabase: ${error.message}`);
-}
+  if (existingError) {
+    throw new Error(
+      `Failed to check duplicate saved memory: ${existingError.message}`
+    );
+  }
+
+  if (existingMemory) {
+    return memory;
+  }
+
+  const { error } = await db.from("cipher_memories").insert({
+    id: memory.id,
+    type: memory.type,
+    title: memory.title,
+    value: memory.value,
+    source: memory.source,
+    confidence: memory.confidence,
+    approval_id: memory.approvalId,
+    created_at: memory.createdAt,
+  });
+
+  if (error) {
+    throw new Error(`Failed to save memory to Supabase: ${error.message}`);
+  }
+
+  savedMemories.push(memory);
   return memory;
 }
 

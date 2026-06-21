@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { parseUploadedFile } from "@/lib/file-parser";
+import { extractMemoryFacts } from "@/lib/memory-learning/extractor";
+import { compareWithExistingMemory } from "@/lib/memory-learning/comparator";
+import { addToApprovalQueue } from "@/lib/memory-learning/approvalQueue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +25,15 @@ function getAdminClient() {
 
 export async function POST(req: Request) {
   try {
-    const { bucket, path, fileName, mimeType, sizeBytes } = await req.json();
+    const {
+      bucket,
+      path,
+      fileName,
+      mimeType,
+      sizeBytes,
+      learnMemory = false,
+      existingMemories = [],
+    } = await req.json();
 
     if (!bucket || !path || !fileName) {
       return NextResponse.json(
@@ -41,12 +52,13 @@ export async function POST(req: Request) {
     const supabase = getAdminClient();
     const { data, error } = await supabase.storage.from(bucket).download(path);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     if (!data) {
-      return NextResponse.json({ error: "Uploaded file was not found in storage." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Uploaded file was not found in storage." },
+        { status: 404 }
+      );
     }
 
     const file = new File([data], fileName, {
@@ -55,6 +67,29 @@ export async function POST(req: Request) {
 
     const parsed = await parseUploadedFile(file);
 
+    let memoryLearning = null;
+
+    if (learnMemory && parsed.text) {
+      const facts = await extractMemoryFacts({
+        text: parsed.text,
+        source: fileName,
+      });
+
+      const changes = await compareWithExistingMemory({
+        facts,
+        existingMemories,
+      });
+
+      const approvalItems = await addToApprovalQueue(changes);
+
+      memoryLearning = {
+        facts,
+        changes,
+        approvalItems,
+        count: approvalItems.length,
+      };
+    }
+
     return NextResponse.json({
       file: {
         ...parsed,
@@ -62,6 +97,7 @@ export async function POST(req: Request) {
           ? `${parsed.note} Processed from Supabase Storage.`
           : "Processed from Supabase Storage.",
       },
+      memoryLearning,
     });
   } catch (err: any) {
     return NextResponse.json(

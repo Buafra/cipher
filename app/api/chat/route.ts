@@ -4,6 +4,10 @@ import { loadMemory, loadProfile } from "@/lib/memory";
 import { buildSystemPrompt } from "@/lib/prompt";
 import { resolveModelRoute, routeReasoning, type ChatTurn } from "@/lib/model-router";
 import { searchWeb } from "@/lib/search";
+import {
+  searchCipherMemories,
+  formatCipherMemoriesForPrompt,
+} from "@/lib/memory-learning/searchMemories";
 
 export const runtime = "nodejs";
 
@@ -156,7 +160,8 @@ export async function POST(req: NextRequest) {
     const webResults = useWeb
       ? await searchWeb(message)
       : "No live web search needed for this message, or web search is turned off in the UI.";
-
+const relevantMemories = await searchCipherMemories(message, 8);
+const memoryContext = formatCipherMemoriesForPrompt(relevantMemories);
     const system = `${buildSystemPrompt(profile, facts)}
 
 CIPHER RUNTIME STATUS:
@@ -175,7 +180,8 @@ If the UI-selected model is Auto, explain the actual router path shown above.
 
 LIVE WEB RESULTS FROM TAVILY:
 ${webResults}
-
+RELEVANT SAVED CIPHER MEMORIES:
+${memoryContext}
 RULES:
 For current, live, recent, price, market, weather, news, travel, stock, crypto, regulation, product, or dated questions, use the Tavily results above first.
 Use ONLY the live web results above for current facts.
@@ -217,6 +223,7 @@ if (turns.length === 0 || turns[turns.length - 1].role !== "user") {
       selectedModel: result.selectedModel,
       selectedAgent,
       searchUsed: useWeb,
+      memoryResultsUsed: relevantMemories.length,
     });
   } catch (err: any) {
     console.error("[/api/chat]", err);

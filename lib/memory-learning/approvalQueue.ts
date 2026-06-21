@@ -1,6 +1,13 @@
 import { db } from "@/lib/supabase";
 import type { MemoryApprovalItem, MemoryChange } from "./types";
 
+function normalizeMemoryText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 function rowToApprovalItem(row: any): MemoryApprovalItem {
   return {
     id: row.id,
@@ -40,10 +47,26 @@ export async function addToApprovalQueue(
     }));
 
   if (rows.length === 0) return [];
+const { data: existingRows, error: existingError } = await db
+  .from("memory_approval_queue")
+  .select("fact_value");
 
+if (existingError) {
+  throw new Error(`Failed to check duplicate approval items: ${existingError.message}`);
+}
+
+const existingValues = new Set(
+  (existingRows ?? []).map((row) => normalizeMemoryText(row.fact_value ?? ""))
+);
+
+const uniqueRows = rows.filter(
+  (row) => !existingValues.has(normalizeMemoryText(row.fact_value))
+);
+
+if (uniqueRows.length === 0) return [];
   const { data, error } = await db
     .from("memory_approval_queue")
-    .insert(rows)
+    .insert(uniqueRows)
     .select();
 
   if (error) {
@@ -77,11 +100,12 @@ export async function reviewApprovalItem(input: {
       reviewed_at: new Date().toISOString(),
     })
     .eq("id", input.id)
-    .select()
+    .select("*")
     .single();
 
   if (error) {
-    return null;
+    console.error("Failed to review approval item:", error);
+    throw new Error(`Failed to review approval item: ${error.message}`);
   }
 
   return rowToApprovalItem(data);

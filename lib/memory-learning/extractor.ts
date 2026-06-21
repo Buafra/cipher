@@ -49,15 +49,25 @@ ${text.slice(0, 12000)}
   try {
     const parsed = JSON.parse(response);
 
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+  return [
+    {
+      type: "general",
+      title: "Document Learning Note",
+      value: text.slice(0, 500),
+      source: input.source,
+      confidence: 0.6,
+    },
+  ];
+}
 
-    return parsed.map((item) => ({
-      type: item.type ?? "general",
-      title: item.title ?? "Untitled Fact",
-      value: item.value ?? "",
-      source: item.source ?? input.source,
-      confidence: Number(item.confidence ?? 0.6),
-    }));
+return parsed.map((item) => ({
+  type: item.type ?? "general",
+  title: item.title ?? "Untitled Fact",
+  value: item.value ?? "",
+  source: item.source ?? input.source,
+  confidence: Number(item.confidence ?? 0.6),
+}));
   } catch {
     return [
       {

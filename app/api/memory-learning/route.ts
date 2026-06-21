@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { extractMemoryFacts } from "@/lib/memory-learning/extractor";
 import { compareWithExistingMemory } from "@/lib/memory-learning/comparator";
-import { addToApprovalQueue, getApprovalQueue } from "@/lib/memory-learning/approvalQueue";
+import {
+  addToApprovalQueue,
+  getApprovalQueue,
+} from "@/lib/memory-learning/approvalQueue";
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +20,7 @@ export async function POST(req: Request) {
       existingMemories: body.existingMemories ?? [],
     });
 
-    const approvalItems = addToApprovalQueue(changes);
+    const approvalItems = await addToApprovalQueue(changes);
 
     return NextResponse.json({
       ok: true,
@@ -26,11 +29,14 @@ export async function POST(req: Request) {
       changes,
       approvalItems,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Failed to process memory learning request",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to process memory learning request",
       },
       { status: 500 }
     );
@@ -38,9 +44,24 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    phase: "1B",
-    approvalQueue: getApprovalQueue(),
-  });
+  try {
+    const approvalQueue = await getApprovalQueue();
+
+    return NextResponse.json({
+      ok: true,
+      phase: "1B",
+      approvalQueue,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load approval queue",
+      },
+      { status: 500 }
+    );
+  }
 }

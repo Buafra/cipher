@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { reviewApprovalItem } from "@/lib/memory-learning/approvalQueue";
+import { saveApprovedMemory } from "@/lib/memory-learning/writer";
 
 export async function POST(req: Request) {
   try {
@@ -19,10 +20,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const item = reviewApprovalItem({
-      id: body.id,
-      status: body.status,
-    });
+ const item = await reviewApprovalItem({
+  id: body.id,
+  status: body.status,
+});
 
     if (!item) {
       return NextResponse.json(
@@ -31,9 +32,15 @@ export async function POST(req: Request) {
       );
     }
 
+    const savedMemory =
+  body.status === "approved"
+    ? await saveApprovedMemory(item)
+    : null;
+
     return NextResponse.json({
       ok: true,
       item,
+      savedMemory,
     });
   } catch {
     return NextResponse.json(

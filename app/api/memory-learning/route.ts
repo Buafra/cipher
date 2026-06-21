@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { extractMemoryFacts } from "@/lib/memory-learning/extractor";
 import { compareWithExistingMemory } from "@/lib/memory-learning/comparator";
+import { addToApprovalQueue, getApprovalQueue } from "@/lib/memory-learning/approvalQueue";
 
 export async function POST(req: Request) {
   try {
@@ -16,11 +17,14 @@ export async function POST(req: Request) {
       existingMemories: body.existingMemories ?? [],
     });
 
+    const approvalItems = addToApprovalQueue(changes);
+
     return NextResponse.json({
       ok: true,
       phase: "1B",
       facts,
       changes,
+      approvalItems,
     });
   } catch {
     return NextResponse.json(
@@ -36,6 +40,7 @@ export async function POST(req: Request) {
 export async function GET() {
   return NextResponse.json({
     ok: true,
-    message: "Cipher Phase 1B Memory Learning Engine",
+    phase: "1B",
+    approvalQueue: getApprovalQueue(),
   });
 }

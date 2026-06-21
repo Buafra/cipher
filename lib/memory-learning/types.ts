@@ -23,3 +23,13 @@ export type MemoryChange = {
   existingMemory?: string;
   recommendation: string;
 };
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export type MemoryApprovalItem = {
+  id: string;
+  status: ApprovalStatus;
+  change: MemoryChange;
+  createdAt: string;
+  reviewedAt?: string;
+};

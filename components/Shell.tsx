@@ -7,7 +7,8 @@ const SECTIONS = [
       { href: "/", label: "Dashboard", status: "live" },
       { href: "/chat", label: "Chat", status: "live" },
       { href: "/settings", label: "Memory", status: "live" },
-      { href: "/projects", label: "Projects", status: "soon" },
+{ href: "/memory-review", label: "Memory Review", status: "live" },
+{ href: "/projects", label: "Projects", status: "soon" },
       { href: "/files", label: "Files", status: "soon" },
     ],
   },
@@ -45,7 +46,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </p>
               <div className="mt-4 flex items-center gap-2 text-[11px] text-emerald-200">
                 <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.9)]" />
-                Online · Phase 1A
+                Online · Phase 1C
               </div>
             </div>
 
@@ -77,8 +78,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <p className="eyebrow">System</p>
               <p className="mt-2 text-sm text-white">Core services online</p>
               <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                Chat, history, memory extraction, tasks, Morning Sync, and search foundation are available.
-              </p>
+Chat, history, memory, document intelligence, review queue, tasks, Morning Sync, and search foundation are available.              </p>
             </div>
           </div>
         </aside>

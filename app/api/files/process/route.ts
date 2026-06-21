@@ -83,15 +83,21 @@ export async function POST(req: Request) {
       const approvalItems = await addToApprovalQueue(changes);
 
       memoryLearning = {
-        facts,
-        changes,
-        approvalItems,
-        count: approvalItems.length,
-      };
+  ok: true,
+  phase: "1C",
+  source: "document-intelligence",
+  facts,
+  changes,
+  approvalItems,
+  count: approvalItems.length,
+};
     }
 
     return NextResponse.json({
-      file: {
+        ok: true,
+  phase: "1C",
+  feature: "document-intelligence",
+file: {
         ...parsed,
         note: parsed.note
           ? `${parsed.note} Processed from Supabase Storage.`

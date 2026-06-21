@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { parseUploadedFile } from "@/lib/file-parser";
+import { extractMemoryFacts } from "@/lib/memory-learning/extractor";
+import { compareWithExistingMemory } from "@/lib/memory-learning/comparator";
+import { addToApprovalQueue } from "@/lib/memory-learning/approvalQueue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,9 +32,50 @@ export async function POST(req: Request) {
       }
     }
 
-    const parsed = await Promise.all(files.map((file) => parseUploadedFile(file)));
+  const learnMemory = formData.get("learnMemory") === "true";
+const existingMemoriesRaw = formData.get("existingMemories");
+const existingMemories =
+  typeof existingMemoriesRaw === "string" && existingMemoriesRaw
+    ? JSON.parse(existingMemoriesRaw)
+    : [];
 
-    return NextResponse.json({ files: parsed });
+const parsed = await Promise.all(files.map((file) => parseUploadedFile(file)));
+
+const memoryLearning = [];
+
+if (learnMemory) {
+  for (const file of parsed) {
+    if (!file.text) continue;
+
+    const facts = await extractMemoryFacts({
+      text: file.text,
+      source: file.fileName,
+    });
+
+    const changes = await compareWithExistingMemory({
+      facts,
+      existingMemories,
+    });
+
+    const approvalItems = await addToApprovalQueue(changes);
+
+    memoryLearning.push({
+      fileName: file.fileName,
+      facts,
+      changes,
+      approvalItems,
+      count: approvalItems.length,
+    });
+  }
+}
+
+return NextResponse.json({
+  ok: true,
+  phase: "1C",
+  feature: "document-intelligence",
+  files: parsed,
+  memoryLearning,
+});
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message ?? "Upload failed" },

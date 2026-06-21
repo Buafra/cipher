@@ -13,6 +13,11 @@ export type UploadedFileContext = {
   note?: string;
 };
 
+type MemoryLearningResult = {
+  fileName: string;
+  count: number;
+};
+
 type FileUploadProps = {
   files: UploadedFileContext[];
   onFilesAdded: (files: UploadedFileContext[]) => void;
@@ -56,10 +61,16 @@ export function FileUpload({
 }: FileUploadProps) {
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [learnMemory, setLearnMemory] = useState(false);
+  const [memoryLearning, setMemoryLearning] = useState<MemoryLearningResult[]>([]);
 
   async function uploadSmallFiles(fileList: File[]) {
     const formData = new FormData();
     fileList.forEach((file) => formData.append("files", file));
+
+    if (learnMemory) {
+      formData.append("learnMemory", "true");
+    }
 
     const res = await fetch("/api/files/upload", {
       method: "POST",
@@ -71,6 +82,10 @@ export function FileUpload({
 
     if (!res.ok) {
       throw new Error(data.error ?? "Upload failed");
+    }
+
+    if (Array.isArray(data.memoryLearning)) {
+      setMemoryLearning(data.memoryLearning);
     }
 
     return data.files ?? [];
@@ -116,6 +131,7 @@ export function FileUpload({
         fileName: file.name,
         mimeType: file.type || "application/octet-stream",
         sizeBytes: file.size,
+        learnMemory,
       }),
     });
 
@@ -126,6 +142,10 @@ export function FileUpload({
       throw new Error(processData.error ?? "Failed to process large file");
     }
 
+    if (processData.memoryLearning) {
+      setMemoryLearning([processData.memoryLearning]);
+    }
+
     return processData.file;
   }
 
@@ -133,6 +153,7 @@ export function FileUpload({
     if (!fileList?.length || disabled || uploading) return;
 
     setError("");
+    setMemoryLearning([]);
     setUploading(true);
 
     try {
@@ -159,37 +180,61 @@ export function FileUpload({
     }
   }
 
+  const totalMemoryCandidates = memoryLearning.reduce(
+    (sum, item) => sum + item.count,
+    0
+  );
+
   return (
     <div className="space-y-3">
       {showButton && (
-        <label
-          className={
-            "inline-flex rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-paper-dim hover:text-paper " +
-            (disabled || uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer")
-          }
-        >
-          {uploading ? "Uploading…" : "Upload"}
-          <input
-            type="file"
-            multiple
-            disabled={disabled || uploading}
-            className="hidden"
-            accept=".pdf,.docx,.xlsx,.xls,.csv,.pptx,.txt,.md,.json,.html,.htm,.xml,.log,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.m4a,.mp4,.mov,.zip"
-            onChange={async (event) => {
-              const input = event.target;
-              try {
-                await handleUpload(input.files);
-              } finally {
-                input.value = "";
-              }
-            }}
-          />
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label
+            className={
+              "inline-flex rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-paper-dim hover:text-paper " +
+              (disabled || uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer")
+            }
+          >
+            {uploading ? "Uploading…" : "Upload"}
+            <input
+              type="file"
+              multiple
+              disabled={disabled || uploading}
+              className="hidden"
+              accept=".pdf,.docx,.xlsx,.xls,.csv,.pptx,.txt,.md,.json,.html,.htm,.xml,.log,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.m4a,.mp4,.mov,.zip"
+              onChange={async (event) => {
+                const input = event.target;
+                try {
+                  await handleUpload(input.files);
+                } finally {
+                  input.value = "";
+                }
+              }}
+            />
+          </label>
+
+          <label className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-paper-dim">
+            <input
+              type="checkbox"
+              checked={learnMemory}
+              disabled={disabled || uploading}
+              onChange={(event) => setLearnMemory(event.target.checked)}
+            />
+            Learn from document
+          </label>
+        </div>
       )}
 
       {error && (
         <div className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs text-red-200">
           {error}
+        </div>
+      )}
+
+      {memoryLearning.length > 0 && (
+        <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+          Document Intelligence created {totalMemoryCandidates} memory candidate(s).
+          Review them in Memory Review.
         </div>
       )}
 

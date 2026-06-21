@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { extractMemoryFacts } from "@/lib/memory-learning/extractor";
+import { compareWithExistingMemory } from "@/lib/memory-learning/comparator";
 
 export async function POST(req: Request) {
   try {
@@ -10,16 +11,22 @@ export async function POST(req: Request) {
       source: body.source ?? "manual-input",
     });
 
+    const changes = await compareWithExistingMemory({
+      facts,
+      existingMemories: body.existingMemories ?? [],
+    });
+
     return NextResponse.json({
       ok: true,
       phase: "1B",
       facts,
+      changes,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         ok: false,
-        error: "Failed to extract memory facts",
+        error: "Failed to process memory learning request",
       },
       { status: 500 }
     );

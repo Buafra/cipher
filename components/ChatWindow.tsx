@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-
+import { FileUpload } from "@/components/FileUpload";
 type Turn = { role: "user" | "assistant"; content: string };
 
 type Conversation = {
@@ -9,7 +9,15 @@ type Conversation = {
   title: string;
   created_at: string;
 };
-
+type UploadedFileContext = {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: string;
+  text: string;
+  extracted: boolean;
+  note?: string;
+};
 const VOICE_LANG = "en-US";
 
 const MODELS = [
@@ -37,6 +45,7 @@ export function ChatWindow() {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [remembered, setRemembered] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileContext[]>([]);
 
   // Phase 1A model controls. These are sent to /api/chat and routed server-side.
   const [selectedModel, setSelectedModel] = useState("Auto");
@@ -57,6 +66,29 @@ export function ChatWindow() {
   const endRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const baseInputRef = useRef("");
+
+  function removeUploadedFile(index: number) {
+    setUploadedFiles((files) => files.filter((_, i) => i !== index));
+  }
+
+  function buildFileContext() {
+    if (!uploadedFiles.length) return "";
+
+    return uploadedFiles
+      .map((file, index) =>
+        [
+          `File ${index + 1}: ${file.fileName}`,
+          `Type: ${file.kind} (${file.mimeType})`,
+          `Extracted: ${file.extracted ? "yes" : "no"}`,
+          file.note ? `Note: ${file.note}` : "",
+          "Content:",
+          file.text || "[No extractable text. Use the file metadata only.]",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .join("\n\n---\n\n");
+  }
 
   async function loadConversations() {
     const res = await fetch("/api/chat/conversations", { cache: "no-store" });
@@ -171,6 +203,7 @@ export function ChatWindow() {
     setTurns([]);
     setConversationId(undefined);
     setInput("");
+    setUploadedFiles([]);
   }
 
   async function deleteConversation(id: string) {
@@ -202,7 +235,17 @@ export function ChatWindow() {
 
   async function send() {
     const message = input.trim();
-    if (!message || busy) return;
+    if ((!message && uploadedFiles.length === 0) || busy) return;
+
+    const fileContext = buildFileContext();
+    const messageForModel = fileContext
+      ? `${message || "Analyze the uploaded file(s)."}\n\n[Uploaded file context]\n${fileContext}`
+      : message;
+    const displayMessage = uploadedFiles.length
+      ? `${message || "Analyze the uploaded file(s)."}\n\nAttached: ${uploadedFiles
+          .map((file) => file.fileName)
+          .join(", ")}`
+      : message;
 
     if (listening) {
       recognitionRef.current?.stop();
@@ -210,7 +253,7 @@ export function ChatWindow() {
     }
 
     setInput("");
-    setTurns((t) => [...t, { role: "user", content: message }]);
+    setTurns((t) => [...t, { role: "user", content: displayMessage }]);
     setBusy(true);
 
     try {
@@ -218,7 +261,7 @@ export function ChatWindow() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message,
+          message: messageForModel,
           conversationId,
           selectedModel,
           selectedAgent,
@@ -241,6 +284,7 @@ export function ChatWindow() {
         searchUsed: Boolean(data.searchUsed),
       });
       setTurns((t) => [...t, { role: "assistant", content: data.reply }]);
+      setUploadedFiles([]);
       loadConversations();
 
       fetch("/api/memory/extract", {
@@ -368,14 +412,14 @@ export function ChatWindow() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled
-              className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-paper-faint disabled:opacity-60"
-              title="File upload will be wired in the next sprint"
-            >
-              Upload
-            </button>
+            <FileUpload
+  files={uploadedFiles}
+ onFilesAdded={(files) => {
+  setUploadedFiles((existing) => [...existing, ...files]);
+}}
+  onRemoveFile={removeUploadedFile}
+  disabled={busy}
+/>
             <button
               type="button"
               onClick={newChat}
@@ -387,6 +431,9 @@ export function ChatWindow() {
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
+
+        
+
           {turns.length === 0 && (
             <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5">
               <p className="eyebrow">Cipher Chat</p>
@@ -472,7 +519,7 @@ export function ChatWindow() {
 
             <button
               onClick={send}
-              disabled={busy || !input.trim()}
+              disabled={busy || (!input.trim() && uploadedFiles.length === 0)}
               className="shrink-0 rounded-xl bg-brass px-5 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               Send

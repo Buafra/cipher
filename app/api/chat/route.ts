@@ -184,10 +184,16 @@ Do not invent prices, dates, headlines, sports results, flight times, or sources
 Always include source URLs when using live web results.
 `;
 
-    const turns: ChatTurn[] = (history ?? []).map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    let turns: ChatTurn[] = (history ?? [])
+  .filter((m) => m.role === "user" || m.role === "assistant")
+  .map((m) => ({
+    role: m.role as "user" | "assistant",
+    content: m.content,
+  }));
+
+if (turns.length === 0 || turns[turns.length - 1].role !== "user") {
+  turns = [...turns, { role: "user", content: message }];
+}
 
     const result = await routeReasoning(system, turns, 1024, {
       selectedModel,

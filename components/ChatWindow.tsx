@@ -314,8 +314,8 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="grid h-[78vh] w-full grid-cols-1 gap-5 xl:grid-cols-[300px_minmax(0,1fr)_260px]">
-      <aside className="glass flex min-h-0 flex-col rounded-3xl p-4">
+   <div className="grid min-h-[70vh] w-full grid-cols-1 gap-5 xl:grid-cols-[300px_minmax(0,1fr)_260px]">
+	<aside className="glass hidden min-h-0 flex-col rounded-3xl p-4 xl:flex">
         <button
           onClick={newChat}
           className="mb-4 w-full rounded-2xl bg-brass px-3 py-3 text-sm font-medium text-white transition hover:opacity-90"
@@ -430,7 +430,7 @@ export function ChatWindow() {
           </div>
         </div>
 
-        <div className="flex-1 space-y-5 overflow-y-auto p-6">
+        <div className="flex-1 space-y-4 overflow-y-auto p-3 md:p-6">
 
         
 
@@ -451,8 +451,8 @@ export function ChatWindow() {
               <div
                 className={
                   t.role === "user"
-                    ? "inline-block max-w-[85%] rounded-2xl border border-blue-500/20 bg-blue-600/20 px-4 py-2 text-left text-paper"
-                    : "inline-block max-w-[90%] whitespace-pre-line rounded-2xl border border-pink-500/10 bg-white/[0.035] px-5 py-4 font-display text-[1.05rem] font-light leading-relaxed text-paper"
+                    ? "inline-blockmax-w-[95%] md:max-w-[85%] rounded-2xl border border-blue-500/20 bg-blue-600/20 px-4 py-2 text-left text-paper"
+                    : "inline-block max-w-[95%] md:max-w-[90%] whitespace-pre-line rounded-2xl border border-pink-500/10 bg-white/[0.035] px-5 py-4 font-display text-[1.05rem] font-light leading-relaxed text-paper"
                 }
               >
                 {t.content}

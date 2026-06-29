@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -56,10 +56,15 @@ export function FileUpload({
 }: FileUploadProps) {
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [learnMemory, setLearnMemory] = useState(false);
 
   async function uploadSmallFiles(fileList: File[]) {
     const formData = new FormData();
-    fileList.forEach((file) => formData.append("files", file));
+    formData.append("learnMemory", String(learnMemory));
+
+    fileList.forEach((file) => {
+      formData.append("files", file);
+    });
 
     const res = await fetch("/api/files/upload", {
       method: "POST",
@@ -88,6 +93,7 @@ export function FileUpload({
         fileName: file.name,
         mimeType: file.type || "application/octet-stream",
         sizeBytes: file.size,
+        learnMemory,
       }),
     });
 
@@ -99,6 +105,7 @@ export function FileUpload({
     }
 
     const supabase = getSupabaseBrowserClient();
+
     const { error: uploadError } = await supabase.storage
       .from(signData.bucket)
       .uploadToSignedUrl(signData.path, signData.token, file);
@@ -116,6 +123,7 @@ export function FileUpload({
         fileName: file.name,
         mimeType: file.type || "application/octet-stream",
         sizeBytes: file.size,
+        learnMemory,
       }),
     });
 
@@ -137,8 +145,12 @@ export function FileUpload({
 
     try {
       const selectedFiles = Array.from(fileList);
-      const smallFiles = selectedFiles.filter((file) => file.size <= SMALL_UPLOAD_LIMIT_BYTES);
-      const largeFiles = selectedFiles.filter((file) => file.size > SMALL_UPLOAD_LIMIT_BYTES);
+      const smallFiles = selectedFiles.filter(
+        (file) => file.size <= SMALL_UPLOAD_LIMIT_BYTES
+      );
+      const largeFiles = selectedFiles.filter(
+        (file) => file.size > SMALL_UPLOAD_LIMIT_BYTES
+      );
 
       const parsedFiles: UploadedFileContext[] = [];
 
@@ -161,6 +173,17 @@ export function FileUpload({
 
   return (
     <div className="space-y-3">
+      <label className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+        <input
+          type="checkbox"
+          checked={learnMemory}
+          onChange={(event) => setLearnMemory(event.target.checked)}
+          disabled={disabled || uploading}
+          className="h-4 w-4"
+        />
+        <span>Learn from Document</span>
+      </label>
+
       {showButton && (
         <label
           className={
@@ -177,6 +200,7 @@ export function FileUpload({
             accept=".pdf,.docx,.xlsx,.xls,.csv,.pptx,.txt,.md,.json,.html,.htm,.xml,.log,.png,.jpg,.jpeg,.webp,.gif,.mp3,.wav,.m4a,.mp4,.mov,.zip"
             onChange={async (event) => {
               const input = event.target;
+
               try {
                 await handleUpload(input.files);
               } finally {
@@ -209,6 +233,7 @@ export function FileUpload({
                     {file.kind.toUpperCase()} · {(file.sizeBytes / 1024).toFixed(1)} KB ·{" "}
                     {file.extracted ? "text extracted" : "metadata only"}
                   </p>
+
                   {file.note && (
                     <p className="mt-1 text-[10px] text-paper-faint">{file.note}</p>
                   )}
